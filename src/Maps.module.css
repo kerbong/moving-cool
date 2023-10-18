@@ -1,6 +1,6 @@
 .category {
-  position: absolute;
-  top: 10px;
+  position: fixed;
+  top: 5px;
   right: 10px;
   border-radius: 5px;
   border: 1px solid #909090;
@@ -8,12 +8,13 @@
   background: #fff;
   overflow: hidden;
   z-index: 2;
+  padding: 0;
 }
 .placeinfo_wrap {
   position: absolute;
   top: 20px;
   left: 10px;
-  width: 280px;
+  width: 310px;
   height: 90vh;
   border-radius: 5px;
   border: 1px solid #909090;
@@ -22,13 +23,19 @@
   overflow: hidden;
   z-index: 2;
 }
-
+.placeinfo {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 10px;
+  align-items: center;
+  position: relative;
+}
 .category li {
   float: left;
   list-style: none;
   width: 50px;
   border-right: 1px solid #acacac;
-  padding: 6px 0;
+  padding: 10px 3px;
   text-align: center;
   cursor: pointer;
 }
@@ -50,28 +57,72 @@
   width: 27px;
   height: 28px;
 }
-.category li .category_bg {
-  background: url(https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/places_category.png)
-    no-repeat;
+
+.logo {
+  position: absolute;
+  top: 35px;
+  left: 25px;
+  width: 40px;
+  height: 38px;
 }
-.category li .bank {
-  background-position: -10px 0;
+
+.window {
+  position: fixed;
+  top: 10%;
+  left: 56%;
+  transform: translate(-50%, -50%);
+  background-color: #0000008a;
+  padding: 30px;
+  z-index: 3;
+  border-radius: 15px;
+  color: white;
+  font-size: 1.2rem;
+  text-align: center;
 }
-.category li .mart {
-  background-position: -10px -36px;
+
+.search-input {
+  box-sizing: border-box;
+  width: 95%;
+  padding: 10px 35px 10px 50px;
+  height: 50px;
+  font-size: 16px;
+  background-color: #fff;
+  border-radius: 10px;
 }
-.category li .pharmacy {
-  background-position: -10px -72px;
+
+.search-btn {
+  background-color: #ffffff00;
+  position: absolute;
+  top: 44px;
+  right: 20px;
+  border: 0;
+  width: 35px;
+  height: 23px;
+  cursor: pointer;
 }
-.category li .oil {
-  background-position: -10px -108px;
+
+.title {
+  font-size: 20px;
+  margin-bottom: 15px;
+  letter-spacing: 1px;
 }
-.category li .cafe {
-  background-position: -10px -144px;
+
+.search-div {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 95%;
+  background-color: #2e3e4b;
+  padding: 30px 10px;
+  color: whitesmoke;
 }
-.category li .store {
-  background-position: -10px -180px;
+.flex-row-title {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
 }
-.category li.on .category_bg {
-  background-position-x: -46px;
+
+.search-form {
+  display: flex;
+  justify-content: center;
 }
