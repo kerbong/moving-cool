@@ -42,10 +42,53 @@
 .category li.on {
   background: #eee;
 }
+
+.listItem-div {
+  overflow: visible;
+  user-select: none;
+}
+
+.scroll {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  width: 6px;
+  margin: 4px 0;
+  border-radius: 10px;
+  background: #a1a3b3;
+  opacity: 0;
+  z-index: 5;
+  transition: opacity 0.5s, top 0.1s;
+}
+
+.listItem-result {
+  overflow: hidden scroll;
+  margin-top: 120px;
+}
+
+.listItem-li {
+  list-style: none;
+  padding: 5px 20px;
+}
+
+.listItem-li:hover {
+  background-color: lightgray;
+  cursor: pointer;
+}
+.nameH5 {
+  font-size: 16px;
+  margin: 5px 0px;
+}
+.text-gray {
+  color: dimgray;
+  font-size: 14px;
+}
+
 .category li:hover {
   background: #ffe6e6;
   border-left: 1px solid #acacac;
   margin-left: -1px;
+  color: black;
 }
 .category li:last-child {
   margin-right: 0;
@@ -99,6 +142,16 @@
   width: 35px;
   height: 23px;
   cursor: pointer;
+}
+
+.nowCategory-clicked {
+  background-color: #2e3e4b;
+  color: whitesmoke;
+}
+
+.nowCategory {
+  background-color: white;
+  color: black;
 }
 
 .title {

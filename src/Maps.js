@@ -6,6 +6,8 @@ import logoPng from "./img/logo192.png";
 
 const { kakao } = window;
 
+const SCHOOL_CATEGORY = ["초등", "중등", "고등"];
+
 const Maps = () => {
   const [map, setMap] = useState(null);
   const [placeInfo, setPlaceInfo] = useState(null);
@@ -14,13 +16,16 @@ const Maps = () => {
   const [schoolInputValue, setSchoolInputValue] = useState("");
   const [searchedSchool, setSearchedSchool] = useState([]);
   const [markers, setMarkers] = useState([]);
+  const [nowCategory, setNowCategory] = useState("초등");
+  const [ps, setPs] = useState(null);
+  const [keywordResults, setKeywordResults] = useState([]);
 
-  const searchInput = useRef();
+  var currCategory = "초등";
 
   useEffect(() => {
     var mapContainer = document.getElementById("map"), // 지도를 표시할 div
       mapOption = {
-        center: new kakao.maps.LatLng(37.566826, 126.9786567), // 지도의 중심좌표
+        center: new kakao.maps.LatLng(37.4915986, 127.0227077), // 지도의 중심좌표
         level: 4, // 지도의 확대 레벨
       };
 
@@ -31,10 +36,12 @@ const Maps = () => {
 
   useEffect(() => {
     if (!map) return;
-    var currCategory = ""; // 현재 선택된 카테고리를 가지고 있을 변수입니다
+    // 현재 선택된 카테고리를 가지고 있을 변수입니다
 
     // 장소 검색 객체를 생성합니다
-    var ps = new kakao.maps.services.Places(map);
+    let new_ps = new kakao.maps.services.Places(map);
+
+    setPs(new_ps);
 
     // 지도에 idle 이벤트를 등록합니다
     kakao.maps.event.addListener(map, "idle", searchPlaces);
@@ -47,22 +54,25 @@ const Maps = () => {
       if (!currCategory) {
         return;
       }
-
+      console.log(currCategory);
       // 지도에 표시되고 있는 마커를 제거합니다
       removeMarker();
 
-      ps.categorySearch("SC4", placesSearchCB, { useMapBounds: true });
+      new_ps.categorySearch("SC4", placesSearchCB, { useMapBounds: true });
     }
+
+    searchPlaces();
 
     // 장소검색이 완료됐을 때 호출되는 콜백함수 입니다
     function placesSearchCB(data, status, pagination) {
       if (status === kakao.maps.services.Status.OK) {
         // 정상적으로 검색이 완료됐으면 지도에 마커를 표출합니다
         displayPlaces(data);
-
+        console.log("기존 여기");
+        console.log(data);
         if (pagination.hasNextPage) {
           // 있으면 다음 페이지를 검색한다.
-          console.log("넘쳐");
+          // console.log("넘쳐");
           setShowWindow(true);
 
           // pagination.nextPage();
@@ -81,7 +91,7 @@ const Maps = () => {
       // 몇번째 카테고리가 선택되어 있는지 얻어옵니다
       // 이 순서는 스프라이트 이미지에서의 위치를 계산하는데 사용됩니다
 
-      console.log(places);
+      // console.log(places);
 
       places?.forEach((pl) => {
         // if (pl?.category_name?.includes("초등")) return;
@@ -97,16 +107,6 @@ const Maps = () => {
         // 마커를 생성하고 지도에 표시합니다
         makeMarkerWithEvent(pl);
       });
-    }
-
-    // 지도 위에 표시되고 있는 마커를 모두 제거합니다
-    function removeMarker() {
-      let prev_markers = markers;
-      for (var i = 0; i < prev_markers.length; i++) {
-        prev_markers[i].setMap(null);
-      }
-
-      setMarkers([]);
     }
 
     // 각 카테고리에 클릭 이벤트를 등록합니다
@@ -127,25 +127,23 @@ const Maps = () => {
       // placeOverlay.setMap(null);
 
       currCategory = id;
-      changeCategoryClass(this);
+      setNowCategory(id);
       searchPlaces();
     }
 
-    // 클릭된 카테고리에만 클릭된 스타일을 적용하는 함수입니다
-    function changeCategoryClass(el) {
-      var category = document.getElementById("category"),
-        children = category.children,
-        i;
-
-      for (i = 0; i < children.length; i++) {
-        children[i].className = "";
-      }
-
-      if (el) {
-        el.className = "on";
-      }
-    }
+    return () => kakao.maps.event.removeListener(map, "idle", searchPlaces);
   }, [map]);
+
+  // 지도 위에 표시되고 있는 마커를 모두 제거합니다
+  function removeMarker() {
+    let prev_markers = markers;
+    console.log(prev_markers);
+    for (var i = 0; i < prev_markers.length; i++) {
+      prev_markers[i].setMap(null);
+    }
+
+    setMarkers([]);
+  }
 
   /**  마커를 생성하고 지도 위에 마커를 표시하는 함수입니다*/
   function addMarker(position, pl_name) {
@@ -181,6 +179,7 @@ const Maps = () => {
     return marker;
   }
 
+  /** 마커를 만들고 마커에 클릭 이벤트 넣기 */
   const makeMarkerWithEvent = (pl) => {
     var marker = addMarker(new kakao.maps.LatLng(pl.y, pl.x), pl?.place_name);
 
@@ -208,25 +207,23 @@ const Maps = () => {
 
     //현재 클릭된 학교면 통통튀는 css를 위한 id  추가하기 (위치가 완전 중요)
     if (placeName === pl?.place_name) {
-      let nowImg = document.querySelector(`img[title=${pl?.place_name}]`);
+      let nowImg = document.querySelector(`img[title='${pl?.place_name}']`);
       nowImg.id = "pin-selected";
     }
   };
 
   useEffect(() => {
     if (!placeName) return;
-    console.log(placeName);
     // 만약 현재 placeInfo가 null이 아니면 현재 선택된 학교 골라서 통통튀는 css 적용
     if (!placeInfo) return;
-    let nowImg = document.querySelector(`img[title=${placeName}]`);
+    let nowImg = document.querySelector(`img[title='${placeName}']`);
     if (!nowImg) return;
     nowImg.id = "pin-selected";
     nowImg.src = schoolClickedPng;
-  }, [markers]);
+  }, [markers, placeInfo]);
 
   /** 이전을 누르면 작동하는, 이전에 검색했던 학교 보여주는 함수 */
   const beforePlaceInfo = (placeName) => {
-    console.log(searchedSchool);
     //현재 학교 효과, state에서 없애고
     removePlaceInfo(placeName);
 
@@ -248,7 +245,7 @@ const Maps = () => {
 
     //새롭게 효과주고 state에 넣기 (마커에 없으면.. 마커를 추가하고 넣어줘야 하나)
     let nowImg = document.querySelector(
-      `img[title=${new_placeInfo.place_name}]`
+      `img[title='${new_placeInfo.place_name}']`
     );
     if (!nowImg) {
       // makeMarkerWithEvent(new_placeInfo);
@@ -266,7 +263,11 @@ const Maps = () => {
     var level = +map.getLevel();
     if (level === 1) {
       level = 1.3;
+    } else if (level > 5) {
+      map.setLevel(3);
+      level = 3;
     }
+
     var new_level = 0.0008 * (level - 0.9);
     map.panTo(new kakao.maps.LatLng(place.y, +place.x - new_level));
   };
@@ -274,7 +275,7 @@ const Maps = () => {
   /** 선택된 학교 없애기 */
   const removePlaceInfo = (placeName) => {
     // 이미지랑 통통튀는 효과 없애기
-    let nowImg = document.querySelector(`img[title=${placeName}]`);
+    let nowImg = document.querySelector(`img[title='${placeName}']`);
     if (!nowImg) return;
     nowImg.id = "";
     nowImg.src = schoolPng;
@@ -364,7 +365,132 @@ const Maps = () => {
   const searchingSchool = (e) => {
     e.preventDefault();
 
-    console.log(searchInput.current.value);
+    // console.log(schoolInputValue);
+    let keyword = schoolInputValue;
+
+    if (!keyword.replace(/^\s+|\s+$/g, "")) {
+      return false;
+    }
+
+    // kakao.maps.event.removeListener(map, "click", clickHandler);
+
+    currCategory = "";
+
+    setKeywordResults([]);
+
+    //현재 클릭된 학교 없애기
+    setPlaceInfo(null);
+    setPlaceName("");
+
+    ps.keywordSearch(keyword, keywordSearchHandler);
+
+    // 장소검색이 완료됐을 때 호출되는 콜백함수 입니다
+    function keywordSearchHandler(data, status, pagination) {
+      if (status === kakao.maps.services.Status.OK) {
+        // 정상적으로 검색이 완료됐으면
+        // 검색 목록과 마커를 표출합니다
+        // 지도에 표시되고 있는 마커를 제거합니다
+        removeMarker();
+        displayKeyPlaces(data);
+        console.log("여기");
+
+        // 페이지 번호를 표출합니다
+        // displayPagination(pagination);
+      } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+        return;
+      } else if (status === kakao.maps.services.Status.ERROR) {
+        return;
+      }
+    }
+
+    // 검색 결과 목록과 마커를 표출하는 함수입니다
+    function displayKeyPlaces(places) {
+      var bounds = new kakao.maps.LatLngBounds();
+
+      //병설유치원 전기차충전소 교무실... 지우기
+      let new_places = places.filter(
+        (pl) => !pl.place_name.includes("초등학교 ")
+      );
+
+      for (var i = 0; i < new_places.length; i++) {
+        // LatLngBounds 객체에 좌표를 추가합니다
+        var placePosition = new kakao.maps.LatLng(
+          new_places[i].y,
+          new_places[i].x
+        );
+
+        makeMarkerWithEvent(new_places[i]);
+
+        // 검색된 장소 위치를 기준으로 지도 범위를 재설정하기
+        bounds.extend(placePosition);
+      }
+
+      setKeywordResults(new_places);
+
+      // 검색된 장소 위치를 기준으로 지도 범위를 재설정합니다
+      map.setBounds(bounds);
+    }
+  };
+
+  /** 키워드로 찾은 학교를 클릭하면 모든 markers다 지운 후에 현재 학교 그려주기! */
+  const keywordSchoolClick = (place) => {
+    removeMarker();
+
+    makeMarkerWithEvent(place);
+
+    moveToSchool(place);
+
+    setPlaceInfo(place);
+    setPlaceName(place.place_name);
+
+    //학교 정보 상태에 저장하기
+    let place_name = place.place_name;
+    setPlaceName(place_name);
+    setSearchedSchool((prev) => {
+      let new_data = prev || [];
+      if (new_data?.length >= 5) {
+        new_data.shift();
+      }
+      new_data.push(place);
+      return new_data;
+    });
+    setPlaceInfo(place);
+
+    let nowImg = document.querySelector(`img[title='${place_name}']`);
+    if (!nowImg) return;
+    nowImg.id = "pin-selected";
+    nowImg.src = schoolClickedPng;
+  };
+
+  /** 검색결과 항목을 Element로 반환하는 함수*/
+  const getListItem = (places) => {
+    // console.log(places);
+
+    return (
+      <div className={classes["listItem-div"]}>
+        <div className={classes["listItem-result"]}>
+          {places.map((pl, index) => (
+            <li
+              key={index}
+              className={classes["listItem-li"]}
+              onClick={() => {
+                keywordSchoolClick(pl);
+              }}
+            >
+              {/* 학교명 */}
+              <h5 className={classes["nameH5"]}>{pl.place_name}</h5>
+              {/* 주소 */}
+              <div className={classes["text-gray"]}>
+                {pl.road_address_name ? pl.road_address_name : pl.address_name}
+              </div>
+              {/* 전화번호 */}
+              <div className={classes["text-gray"]}>{pl.phone}</div>
+            </li>
+          ))}
+        </div>
+        <div className={classes["scroll"]}></div>
+      </div>
+    );
   };
 
   // 학교 찾는 검색부분 html 코드
@@ -379,7 +505,6 @@ const Maps = () => {
           className={classes["search-input"]}
           type="text"
           value={schoolInputValue}
-          ref={searchInput}
           onChange={(e) => setSchoolInputValue(e.target.value)}
           size="16"
           placeholder={"학교이름 검색"}
@@ -396,20 +521,31 @@ const Maps = () => {
     </>
   );
 
+  //초등 중등 고등 학교급 선택하는 부분
+  const selectCategory = SCHOOL_CATEGORY.map((ct, index) => (
+    <li
+      id={ct}
+      key={index}
+      className={
+        nowCategory === ct
+          ? classes["nowCategory-clicked"]
+          : classes["nowCategory"]
+      }
+    >
+      {/* <i
+      className="fa-solid fa-school-flag fa-lg"
+      style={{ color: "#2e3e4b" }}
+    ></i>
+    <br /> */}
+      {ct}
+    </li>
+  ));
+
   return (
     <>
       <div id="map" style={{ width: "100%", height: "100vh" }}></div>
       <ul id="category" className={classes["category"]}>
-        <li id="초등">
-          {/* <i
-            className="fa-solid fa-school-flag fa-lg"
-            style={{ color: "#2e3e4b" }}
-          ></i>
-          <br /> */}
-          초등
-        </li>
-        <li id="중등">중등</li>
-        <li id="고등">고등</li>
+        {selectCategory}
       </ul>
       {/* 학교 정보가 보일 div  */}
       <div
@@ -420,6 +556,9 @@ const Maps = () => {
       >
         {placeInfo && displayPlaceInfo()}
         {!placeInfo && displayInfoMain()}
+        {!placeInfo &&
+          keywordResults?.length > 0 &&
+          getListItem(keywordResults)}
       </div>
       {/* 학교 정보가 너무 많을 경우, 축소 권장하는 modal */}
       {showWindow && (
