@@ -3,8 +3,11 @@ import classes from "./Maps.module.css";
 import schoolPng from "./img/schoolMarker.png";
 import schoolClickedPng from "./img/schoolMarkerClicked.png";
 import logoPng from "./img/logo192.png";
-
-const { kakao } = window;
+import Auth from "./Auth";
+import { authService } from "./fbase";
+import Swal from "sweetalert2";
+import { signOut } from "firebase/auth";
+import AuthTerms from "./AuthTerms";
 
 const SCHOOL_CATEGORY = ["초등", "중등", "고등"];
 
@@ -19,8 +22,29 @@ const Maps = () => {
   const [nowCategory, setNowCategory] = useState("초등");
   const [ps, setPs] = useState(null);
   const [keywordResults, setKeywordResults] = useState([]);
+  const [keyResultsPages, setKeyResultsPages] = useState(null);
+  const [user, setUser] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [showAgency, setShowAgency] = useState(false);
+
+  const { kakao } = window;
 
   var currCategory = "초등";
+
+  useEffect(() => {
+    const subscribe = authService.onAuthStateChanged((user) => {
+      // console.log("실행");
+      if (user) {
+        setUser(user);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscribe();
+    };
+  }, []);
 
   useEffect(() => {
     var mapContainer = document.getElementById("map"), // 지도를 표시할 div
@@ -54,7 +78,7 @@ const Maps = () => {
       if (!currCategory) {
         return;
       }
-      console.log(currCategory);
+      // console.log(currCategory);
       // 지도에 표시되고 있는 마커를 제거합니다
       removeMarker();
 
@@ -68,8 +92,8 @@ const Maps = () => {
       if (status === kakao.maps.services.Status.OK) {
         // 정상적으로 검색이 완료됐으면 지도에 마커를 표출합니다
         displayPlaces(data);
-        console.log("기존 여기");
-        console.log(data);
+        // console.log("기존 여기");
+        // console.log(data);
         if (pagination.hasNextPage) {
           // 있으면 다음 페이지를 검색한다.
           // console.log("넘쳐");
@@ -137,7 +161,7 @@ const Maps = () => {
   // 지도 위에 표시되고 있는 마커를 모두 제거합니다
   function removeMarker() {
     let prev_markers = markers;
-    console.log(prev_markers);
+    // console.log(prev_markers);
     for (var i = 0; i < prev_markers.length; i++) {
       prev_markers[i].setMap(null);
     }
@@ -212,15 +236,62 @@ const Maps = () => {
     }
   };
 
+  /** 학교알리미에서 학교 정보들 받아오기 첫번째 param 장소, 두번째 apiType */
+  const getSchoolInfoData = async (pl, type) => {
+    // let schoolCode =
+    //   currCategory === "초등" ? "02" : currCategory === "중등" ? "03" : "04";
+    // const res = await fetch(
+    //   `https://www.schoolinfo.go.kr/openApi.do?apiKey=${process.env.REACT_APP_SCHOOL_INFO_API}&apiType=${type}&pbanYr=2023&schulKndCode=${schoolCode}`
+    // );
+    // console.log(res);
+    // const data = await res.json();
+    // console.log(data);
+    //  나이스 오픈 api 학교정보 api 다운로드
+    // let baseUrl =
+    //   "https://open.neis.go.kr/hub/schoolInfo?Type=json&pIndex=1&pSize=1000&SCHUL_KND_SC_NM=초등학교";
+    // let key = "&KEY=" + process.env.REACT_APP_NEIS_OPEN_API;
+    // let filter = "&SCHUL_NM=하남초등학교";
+    // const fetchData = async () => {
+    //   const res = await fetch(baseUrl + key + filter);
+    //   const result = res.json();
+    //   return result;
+    // };
+    // fetchData().then((res) => {
+    //   if (res?.schoolInfo) {
+    //     console.log(res?.schoolInfo?.[1]?.row);
+    //   } else {
+    //     Swal.fire("검색오류", "학교명을 확인해주세요", "info");
+    //   }
+    // });
+  };
+
   useEffect(() => {
     if (!placeName) return;
     // 만약 현재 placeInfo가 null이 아니면 현재 선택된 학교 골라서 통통튀는 css 적용
     if (!placeInfo) return;
-    let nowImg = document.querySelector(`img[title='${placeName}']`);
-    if (!nowImg) return;
-    nowImg.id = "pin-selected";
-    nowImg.src = schoolClickedPng;
+
+    //그냥 이미지를 찾아서 모두 지우고, 다시 현재 위치에 그려주는 게 나을듯..!! dom을 조작해서 parentsNode를 저장해놓고... 거기에 추가하는게 나을듯.
+
+    //해당하는 img를 모두 찾고, 마지막 것만 남기고 dom에서 삭제함.
+    let nowImgAll = document.querySelectorAll(`img[title='${placeName}']`);
+    //혹시 마커가 없으면??
+    if (!nowImgAll) return;
+    nowImgAll?.forEach((img, i) => {
+      //마지막 요소
+      if (i === nowImgAll?.length - 1) {
+        img.id = "pin-selected";
+        img.src = schoolClickedPng;
+      } else {
+        img.parentNode.removeChild(img);
+      }
+    });
   }, [markers, placeInfo]);
+
+  useEffect(() => {
+    if (!placeInfo) return;
+    //선택된 학교의 알리미 정보 가져오기
+    getSchoolInfoData(placeInfo, "09");
+  }, [placeInfo]);
 
   /** 이전을 누르면 작동하는, 이전에 검색했던 학교 보여주는 함수 */
   const beforePlaceInfo = (placeName) => {
@@ -391,8 +462,9 @@ const Maps = () => {
         // 검색 목록과 마커를 표출합니다
         // 지도에 표시되고 있는 마커를 제거합니다
         removeMarker();
+
+        setKeyResultsPages(pagination);
         displayKeyPlaces(data);
-        console.log("여기");
 
         // 페이지 번호를 표출합니다
         // displayPagination(pagination);
@@ -408,9 +480,7 @@ const Maps = () => {
       var bounds = new kakao.maps.LatLngBounds();
 
       //병설유치원 전기차충전소 교무실... 지우기
-      let new_places = places.filter(
-        (pl) => !pl.place_name.includes("초등학교 ")
-      );
+      let new_places = places.filter((pl) => !pl.place_name.includes("학교 "));
 
       for (var i = 0; i < new_places.length; i++) {
         // LatLngBounds 객체에 좌표를 추가합니다
@@ -436,12 +506,14 @@ const Maps = () => {
   const keywordSchoolClick = (place) => {
     removeMarker();
 
-    makeMarkerWithEvent(place);
+    // makeMarkerWithEvent(place);
 
     moveToSchool(place);
 
     setPlaceInfo(place);
     setPlaceName(place.place_name);
+
+    console.log(markers);
 
     //학교 정보 상태에 저장하기
     let place_name = place.place_name;
@@ -456,10 +528,42 @@ const Maps = () => {
     });
     setPlaceInfo(place);
 
-    let nowImg = document.querySelector(`img[title='${place_name}']`);
-    if (!nowImg) return;
-    nowImg.id = "pin-selected";
-    nowImg.src = schoolClickedPng;
+    //선택된 학교 움직이도록?!
+    // let nowImg = document.querySelector(`img[title='${place_name}']`);
+    // if (!nowImg) return;
+    // nowImg.id = "pin-selected";
+    // nowImg.src = schoolClickedPng;
+  };
+
+  const keyPageHtml = () => {
+    const pageHandler = (num) => {
+      if (num !== keyResultsPages?.current) {
+        keyResultsPages?.gotoPage(num);
+      }
+    };
+
+    return (
+      // {/* 다음페이지 이전페이지 */}
+      <div className={classes["pages-div"]}>
+        {keyResultsPages?.last > 1 && (
+          <div>
+            {new Array(keyResultsPages?.last)?.fill(1)?.map((num, i) => (
+              <span
+                key={i + 1}
+                onClick={() => pageHandler(i + 1)}
+                className={
+                  keyResultsPages?.current === i + 1
+                    ? classes["pageNum-now"]
+                    : classes["pageNum"]
+                }
+              >
+                {i + 1}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   /** 검색결과 항목을 Element로 반환하는 함수*/
@@ -488,7 +592,6 @@ const Maps = () => {
             </li>
           ))}
         </div>
-        <div className={classes["scroll"]}></div>
       </div>
     );
   };
@@ -541,12 +644,76 @@ const Maps = () => {
     </li>
   ));
 
+  /** 학교 상세 정보 목록들 보여주는 부분 */
+  const displayPlaceDesc = () => {
+    return (
+      <>
+        {/* 게시판 */}
+        <div>
+          <h4>게시판</h4>
+          <ul>
+            <li>내용</li>
+          </ul>
+        </div>
+      </>
+    );
+  };
+
+  /** 유저 로그인 하는 화면 보여주기 */
+  const userHandler = () => {
+    // 유저 있으면
+    if (user) {
+      setShowLogin(false);
+      //로그아웃 swal
+      Swal.fire({
+        title: "로그아웃",
+        text: "로그아웃 하시겠어요?",
+        confirmButtonText: "확인",
+        showDenyButton: true,
+        denyButtonText: "취소",
+        denyButtonColor: "#89464f",
+        confirmButtonColor: "#2e3e4b",
+        icon: "question",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          signOut(authService);
+        } else {
+        }
+      });
+
+      // 유저 로그인 안한 상태면
+    } else {
+      setShowLogin(true);
+    }
+  };
+
   return (
     <>
       <div id="map" style={{ width: "100%", height: "100vh" }}></div>
+      {/* 초등 중등 고등 카테고리 */}
       <ul id="category" className={classes["category"]}>
         {selectCategory}
       </ul>
+      {/* 로그인버튼 부분 */}
+      <button
+        id="userLogin"
+        className={classes["user-login"]}
+        onClick={userHandler}
+        title={user ? "로그아웃" : "로그인"}
+      >
+        {user ? (
+          <i
+            className="fa-solid fa-circle-user fa-xl"
+            style={{ color: "#243147" }}
+          ></i>
+        ) : (
+          <i
+            className="fa-regular fa-circle-user fa-xl"
+            style={{ color: "#9e9e9e" }}
+          ></i>
+        )}
+      </button>
+
       {/* 학교 정보가 보일 div  */}
       <div
         className={classes["placeinfo_wrap"]}
@@ -554,11 +721,25 @@ const Maps = () => {
         onTouchStart={kakao.maps.event.preventMap}
         // dangerouslySetInnerHTML={{ __html: placeInfo }}
       >
+        {/* 학교 요약정보 */}
         {placeInfo && displayPlaceInfo()}
+        {/* 학교선택 시 상세정보 / 게시판 */}
+        {placeInfo && displayPlaceDesc()}
+
         {!placeInfo && displayInfoMain()}
+        {/* 검색결과 보여주는 곳 */}
         {!placeInfo &&
           keywordResults?.length > 0 &&
           getListItem(keywordResults)}
+        {/* 페이지 보여주는 곳 */}
+        {keywordResults?.length > 0 && keyPageHtml()}
+        {/* 이용약관부분 */}
+        <div
+          onClick={() => setShowAgency(true)}
+          className={classes["map-agencyShow"]}
+        >
+          이용약관 및 개인정보처리방침 보기
+        </div>
       </div>
       {/* 학교 정보가 너무 많을 경우, 축소 권장하는 modal */}
       {showWindow && (
@@ -566,6 +747,31 @@ const Maps = () => {
           지도 안에 학교가 너무 많네요!
           <br />
           정확한 정보를 위해 지도를 확대해주세요!
+        </div>
+      )}
+
+      {/* 로그인 화면 어두운 배경 */}
+      {showLogin && <div className={classes["loginBg"]}></div>}
+
+      {/* 로그인하는 modal */}
+      {showLogin && <Auth onClose={() => setShowLogin(false)} />}
+
+      {/* 약관보기 */}
+      {showAgency && (
+        <div
+          className={classes["login-window"]}
+          style={{ height: "550px", top: "80px" }}
+        >
+          <span
+            style={{ cursor: "pointer", padding: "10px" }}
+            onClick={() => setShowAgency(false)}
+            title="닫기"
+          >
+            <i className="fa-solid fa-xmark fa-xl"></i>
+          </span>
+          <div className={classes["terms-area"]}>
+            <AuthTerms />
+          </div>
         </div>
       )}
     </>
