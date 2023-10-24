@@ -410,13 +410,13 @@ const Maps = (props) => {
 
   /** 선택된 학교 없애기 */
   const removePlaceInfo = (placeName) => {
+    setPlaceInfo(null);
+    setPlaceName(null);
     // 이미지랑 통통튀는 효과 없애기
     let nowImg = document.querySelector(`img[title='${placeName}']`);
     if (!nowImg) return;
     nowImg.id = "";
     nowImg.src = schoolPng;
-    setPlaceInfo(null);
-    setPlaceName(null);
   };
 
   // 클릭한 마커에 대한 장소 상세정보를 커스텀 오버레이로 표시하는 함수입니다
