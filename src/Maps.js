@@ -4,14 +4,24 @@ import schoolPng from "./img/schoolMarker.png";
 import schoolClickedPng from "./img/schoolMarkerClicked.png";
 import logoPng from "./img/logo192.png";
 import Auth from "./Auth";
-import { authService } from "./fbase";
+import { authService, dbService } from "./fbase";
 import Swal from "sweetalert2";
 import { signOut } from "firebase/auth";
 import AuthTerms from "./AuthTerms";
+import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
+import dayjs from "dayjs";
+import "dayjs/locale/ko";
+import Modal from "./Modal";
+import AddBoard from "./AddBoard";
+import EditNick from "./EditNick";
+import FlexibleInput from "./FlexibleInput";
+dayjs.locale("ko");
+var relativeTime = require("dayjs/plugin/relativeTime");
+dayjs.extend(relativeTime);
 
 const SCHOOL_CATEGORY = ["초등", "중등", "고등"];
 
-const Maps = () => {
+const Maps = (props) => {
   const [map, setMap] = useState(null);
   const [placeInfo, setPlaceInfo] = useState(null);
   const [placeName, setPlaceName] = useState(null);
@@ -22,14 +32,41 @@ const Maps = () => {
   const [nowCategory, setNowCategory] = useState("초등");
   const [ps, setPs] = useState(null);
   const [keywordResults, setKeywordResults] = useState([]);
+  const [boards, setBoards] = useState([]);
   const [keyResultsPages, setKeyResultsPages] = useState(null);
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showAgency, setShowAgency] = useState(false);
+  const [showAddBoard, setShowAddBoard] = useState(false);
+  const [nickName, setNickName] = useState("");
+  const [showBoard, setShowBoard] = useState(false);
 
   const { kakao } = window;
 
   var currCategory = "초등";
+
+  /** 파이어베이스에서 학교 관련 내용 받아오는 함수 */
+  const getNickName = async () => {
+    if (!user?.uid) return;
+    let nickRef = doc(dbService, "userData", user?.uid);
+
+    onSnapshot(nickRef, (doc) => {
+      setNickName("");
+
+      if (doc.exists()) {
+        setNickName(doc?.data()?.nickName);
+      }
+    });
+  };
+
+  //장소선택하면. 학교알리미에서 정보 받아오고 나눔 받기
+  useEffect(() => {
+    if (user) {
+      getNickName();
+    } else {
+      setNickName("");
+    }
+  }, [user]);
 
   useEffect(() => {
     const subscribe = authService.onAuthStateChanged((user) => {
@@ -243,7 +280,6 @@ const Maps = () => {
     // const res = await fetch(
     //   `https://www.schoolinfo.go.kr/openApi.do?apiKey=${process.env.REACT_APP_SCHOOL_INFO_API}&apiType=${type}&pbanYr=2023&schulKndCode=${schoolCode}`
     // );
-    // console.log(res);
     // const data = await res.json();
     // console.log(data);
     //  나이스 오픈 api 학교정보 api 다운로드
@@ -254,8 +290,10 @@ const Maps = () => {
     // const fetchData = async () => {
     //   const res = await fetch(baseUrl + key + filter);
     //   const result = res.json();
+    //   console.log(result);
     //   return result;
     // };
+    // fetchData()
     // fetchData().then((res) => {
     //   if (res?.schoolInfo) {
     //     console.log(res?.schoolInfo?.[1]?.row);
@@ -287,10 +325,37 @@ const Maps = () => {
     });
   }, [markers, placeInfo]);
 
+  /** 파이어베이스에서 학교 관련 내용 받아오는 함수 */
+  const getFirebaseData = async () => {
+    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+
+    let boardRef = doc(dbService, "boards", docName);
+
+    onSnapshot(boardRef, (doc) => {
+      // setEvents([]);
+      //기존에 있던 events들도 다 지우기
+      setBoards([]);
+
+      if (doc.exists()) {
+        const sorted_datas = doc?.data()?.datas.sort(function (a, b) {
+          return new Date(a.id) - new Date(b.id);
+        });
+        sorted_datas.reverse();
+        //최신것부터 보여주기.. 내림차순으로
+
+        setBoards(sorted_datas);
+      }
+    });
+  };
+
+  //장소선택하면. 학교알리미에서 정보 받아오고 나눔 받기
   useEffect(() => {
     if (!placeInfo) return;
+    //게시판 창 띄우기
+    setShowBoard(true);
     //선택된 학교의 알리미 정보 가져오기
     getSchoolInfoData(placeInfo, "09");
+    getFirebaseData();
   }, [placeInfo]);
 
   /** 이전을 누르면 작동하는, 이전에 검색했던 학교 보여주는 함수 */
@@ -339,7 +404,7 @@ const Maps = () => {
       level = 3;
     }
 
-    var new_level = 0.0008 * (level - 0.9);
+    var new_level = 0.003 * (level - 0.9);
     map.panTo(new kakao.maps.LatLng(place.y, +place.x - new_level));
   };
 
@@ -480,7 +545,7 @@ const Maps = () => {
       var bounds = new kakao.maps.LatLngBounds();
 
       //병설유치원 전기차충전소 교무실... 지우기
-      let new_places = places.filter((pl) => !pl.place_name.includes("학교 "));
+      let new_places = places.filter((pl) => !pl.place_name.includes(" "));
 
       for (var i = 0; i < new_places.length; i++) {
         // LatLngBounds 객체에 좌표를 추가합니다
@@ -644,15 +709,356 @@ const Maps = () => {
     </li>
   ));
 
+  /** 게시판의 내용 최종 변경 함수 */
+  const saveBoardsDoc = async (ref, datas) => {
+    await setDoc(ref, { datas: datas });
+  };
+
+  /** 좋아요 하트 누르면 변경되는 함수 */
+  const likeHandler = async (bd, rep) => {
+    //로그인 되어 있지 않으면.. 로그인 화면 보여주기
+    if (!checkLogin()) return;
+
+    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+
+    let boardRef = doc(dbService, "boards", docName);
+
+    let new_boardDoc = boards?.filter((data) => {
+      let new_data = data;
+      if (data.id === bd.id && data.written === bd.written) {
+        let new_bd = bd;
+        if (rep) {
+          //현재 좋아요 누른 상태면
+          if (rep.like.includes(user?.uid)) {
+            rep.like = rep.like?.filter((like) => like !== user?.uid);
+            // rep.like = [];
+          } else {
+            rep.like.push(user?.uid);
+          }
+
+          new_bd.reply = new_bd.reply.filter((r) => {
+            let new_r = r;
+            if (r.id === rep.id && r.written === rep.written) {
+              new_r = rep;
+            }
+            return new_r;
+          });
+          new_data = new_bd;
+        } else {
+          //현재 좋아요 누른 상태면
+          if (new_bd.like.includes(user?.uid)) {
+            new_bd.like = new_bd.like?.filter((like) => like !== user?.uid);
+            // new_bd.like = [];
+          } else {
+            new_bd.like.push(user?.uid);
+          }
+          new_data = new_bd;
+        }
+      }
+      return new_data;
+    });
+
+    // console.log(new_boardDoc);
+
+    saveBoardsDoc(boardRef, new_boardDoc);
+  };
+
+  /**신고하기 저장하는 함수 */
+  const reportSaveHandler = async (board) => {
+    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+
+    let boardRef = doc(dbService, "boards", docName);
+
+    let new_boards = [];
+    boards.forEach((bd) => {
+      let new_bd = bd;
+      if (bd.id === board.id && bd.written === board.written) {
+        new_bd = board;
+      }
+      new_boards.push(new_bd);
+    });
+
+    // console.log(new_boards);
+
+    await setDoc(boardRef, { datas: new_boards });
+    Swal.fire(
+      "신고완료",
+      "신고가 완료되었습니다. 보내주신 의견이 반영되기 까지는 시간이 소요될 수 있으니 양해 바랍니다.",
+      "success"
+    );
+  };
+
+  /** 신고하기 확인하는 함수 */
+  const reportCheck = (bd, rep) => {
+    Swal.fire({
+      title: "신고할까요?",
+      text: "글에 부적절한 내용이 포함되어 있다고 생각되시면 확인 버튼을 눌러주세요! 보내주신 의견을 검토한 후에 반영됩니다.",
+      confirmButtonText: "확인",
+      showDenyButton: true,
+      denyButtonText: "취소",
+      denyButtonColor: "#89464f",
+      confirmButtonColor: "#2e3e4b",
+      icon: "question",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        let new_bd = bd;
+        if (rep) {
+          rep.report.push({
+            uid: user.uid,
+            time: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+          });
+          new_bd.reply = new_bd.reply.filter((r) => {
+            let new_r = r;
+            if (r.id === rep.id && r.written === rep.written) {
+              new_r = rep;
+            }
+            return new_r;
+          });
+        } else {
+          new_bd.report.push({
+            uid: user.uid,
+            time: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+          });
+        }
+
+        reportSaveHandler(new_bd);
+      }
+    });
+  };
+
+  /** 넘치면 자르는 함수 */
+  const truncateText = (text, maxLength) => {
+    if (text?.length > maxLength) {
+      let new_text = text?.substring(0, maxLength) + "...";
+      new_text = (
+        <>
+          {new_text}{" "}
+          <span
+            className={classes["textShowMore"]}
+            onClick={(e) => {
+              e.target.parentNode.parentNode.innerText = text;
+            }}
+          >
+            <u>더보기</u>
+          </span>
+        </>
+      );
+      return new_text;
+    }
+
+    return text;
+  };
+
+  /** 로그인 했는지 확인하고, 로그인 되어 있지 않으면 false 반환하는 함수 */
+  const checkLogin = () => {
+    let pass = true;
+    if (!user) {
+      setShowLogin(true);
+      pass = false;
+    }
+    return pass;
+  };
+
+  /** 댓글 추가하기 함수  params( 텍스트, 원글 )  */
+  const replyHandler = async (value, board) => {
+    if (value?.trim()?.length === 0) return;
+
+    //댓글 내용 value
+    const data = {
+      text: value,
+      id: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+      written: user.uid,
+      nickName: nickName,
+      like: [],
+      report: [], //신고하면..
+      to: "", // 원댓글에 처음 댓글이면 빈칸..
+    };
+    //원글의 reply에 넣어줌
+    let new_board = board;
+    new_board.reply.push(data);
+
+    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+
+    let boardRef = doc(dbService, "boards", docName);
+
+    let new_boards = boards;
+    new_boards = new_boards.filter((nb) => {
+      let new_data = nb;
+      if (nb.id === new_board.id && nb.written === new_board.written) {
+        new_data = new_board;
+      }
+      return new_data;
+    });
+
+    await setDoc(boardRef, { datas: new_boards });
+  };
+
   /** 학교 상세 정보 목록들 보여주는 부분 */
   const displayPlaceDesc = () => {
     return (
       <>
-        {/* 게시판 */}
-        <div>
-          <h4>게시판</h4>
-          <ul>
-            <li>내용</li>
+        {/* QnA */}
+        <div className={classes["board-div"]}>
+          <h4 className={classes["board-title"]}>
+            게시판{boards?.length > 0 && <span>({boards?.length})</span>}
+          </h4>
+          {/* 게시판 내용 추가 버튼 */}
+          <button
+            onClick={() => {
+              //로그인 되어 있지 않으면.. 로그인 화면 보여주기
+              if (!checkLogin()) return;
+              setShowAddBoard(true);
+            }}
+            className={classes["addBtn"]}
+            title="글쓰기"
+          >
+            {" "}
+            +
+          </button>
+
+          <ul style={{ padding: "5px 0" }}>
+            {boards?.map((bd, index) => {
+              //로그인하지 않은 상태면.. 최대 3개만 보여주고,
+              if (!user && index > 2) return null;
+
+              return (
+                <li key={index} className={classes["board-li"]}>
+                  <div className={classes["boardLi-title"]}>{bd.title}</div>
+                  <div className={classes["boardLi-text"]}>
+                    {truncateText(bd.text, 60)}
+                  </div>
+
+                  {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                  <div className={classes["boardLi-bottom"]}>
+                    <div style={{ display: "flex" }}>
+                      {/* 닉네임 */}
+                      <div>{bd.nickName}</div>
+
+                      {/* 며칠전 */}
+                      <div style={{ marginLeft: "15px" }}>
+                        {dayjs(bd.id).fromNow()}
+                      </div>
+                      {/* 신고하기 */}
+                      <div
+                        style={{ marginLeft: "15px", cursor: "pointer" }}
+                        onClick={() => reportCheck(bd)}
+                        title="신고하기"
+                      >
+                        <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                      </div>
+                    </div>
+                    {/* 좋아요 */}
+                    <div
+                      style={{ marginLeft: "15px", cursor: "pointer" }}
+                      onClick={() => likeHandler(bd)}
+                    >
+                      {bd.like.includes(user?.uid) ? (
+                        <i
+                          className="fa-solid fa-heart fa-sm"
+                          style={{ color: "#ff1d1d96" }}
+                        ></i>
+                      ) : (
+                        <i
+                          className="fa-regular fa-heart fa-sm"
+                          style={{ color: "#2e3e4b" }}
+                        ></i>
+                      )}{" "}
+                      {bd.like.length}
+                    </div>
+                  </div>
+                  {/* 게시글의 댓글 보여주기 */}
+                  {bd?.reply?.length > 0 && (
+                    <>
+                      <hr />
+                      {bd?.reply?.map((rep, ind) => (
+                        <div key={ind} className={classes["reply-div"]}>
+                          <i
+                            className="fa-solid fa-reply fa-rotate-180"
+                            style={{
+                              color: "#3f4f6994",
+                              marginRight: "10px",
+                              marginTop: "5px",
+                            }}
+                          ></i>
+                          <div style={{ width: "100%" }}>
+                            <div>{truncateText(rep.text, 60)}</div>
+
+                            {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                            <div className={classes["boardLi-bottom"]}>
+                              <div style={{ display: "flex" }}>
+                                {/* 닉네임 */}
+                                <div>{rep.nickName}</div>
+
+                                {/* 며칠전 */}
+                                <div style={{ marginLeft: "15px" }}>
+                                  {dayjs(rep.id).fromNow()}
+                                </div>
+                                {/* 신고하기 */}
+                                <div
+                                  style={{
+                                    marginLeft: "15px",
+                                    cursor: "pointer",
+                                  }}
+                                  onClick={() => reportCheck(bd, rep)}
+                                  title="신고하기"
+                                >
+                                  <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                                </div>
+                              </div>
+                              {/* 좋아요 */}
+                              <div
+                                style={{
+                                  marginLeft: "15px",
+                                  cursor: "pointer",
+                                }}
+                                onClick={() => likeHandler(bd, rep)}
+                              >
+                                {rep.like.includes(user?.uid) ? (
+                                  <i
+                                    className="fa-solid fa-heart fa-sm"
+                                    style={{ color: "#ff1d1d96" }}
+                                  ></i>
+                                ) : (
+                                  <i
+                                    className="fa-regular fa-heart fa-sm"
+                                    style={{ color: "#2e3e4b" }}
+                                  ></i>
+                                )}{" "}
+                                {rep.like.length}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* 댓글다는 부분 */}
+                  <div className={classes["boardLi-bottom"]}>
+                    <FlexibleInput
+                      className={"board-reply"}
+                      placeholder={
+                        nickName
+                          ? `${nickName}님 댓글을 남겨주세요.`
+                          : "먼저 로그인 해주세요."
+                      }
+                      submitHandler={(v) => replyHandler(v, bd)}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+
+            {/* 로그인하지 않은 상태면.. 로그인 버튼 보여주기 */}
+            {!user && (
+              <button
+                className={classes["login-btn"]}
+                style={{ width: "390px" }}
+                onClick={() => setShowLogin(true)}
+              >
+                로그인하고 게시글 더보기
+              </button>
+            )}
           </ul>
         </div>
       </>
@@ -685,6 +1091,99 @@ const Maps = () => {
     } else {
       setShowLogin(true);
     }
+  };
+
+  /** 게시글 추가하는 함수 */
+  const addBoardHandler = async (title, text) => {
+    try {
+      const data = {
+        title,
+        text,
+        id: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+        written: user.uid,
+        nickName: nickName,
+        like: [],
+        report: [], //신고하면..
+        reply: [],
+      };
+
+      //기존 자료에 추가하고 저장하기
+      console.log(data);
+
+      let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+
+      let boardRef = doc(dbService, "boards", docName);
+
+      let new_boards = boards;
+      new_boards.push(data);
+
+      await setDoc(boardRef, { datas: new_boards });
+
+      setShowAddBoard(false);
+    } catch (error) {
+      Swal.fire(
+        "저장 실패",
+        "오류가 생겼어요! 문제가 지속되실 경우 kerbong@gmail.com으로 알려주세요!",
+        "warning"
+      );
+      return;
+    }
+  };
+
+  const addNickHandler = async (nick) => {
+    if (nick?.trim()?.length === 0) return;
+    //저장되어있는 nick모두 불러와서 중복되는게 있는지 확인하고 저장
+    const nickRef = doc(dbService, "userData", "nickNames");
+
+    const nickDatas = await getDoc(nickRef);
+
+    let new_nickDatas = nickDatas?.data().datas;
+
+    if (new_nickDatas.includes(nick)) {
+      Swal.fire(
+        "닉네임 중복!",
+        "이미 존재하는 닉네임이네요! 닉네임을 변경해주세요.",
+        "warning"
+      );
+      return;
+      // 새로운거면.. 저장하고
+    } else {
+      //만약 기존에 닉네임이 있었으면.. 기존꺼는 지우고 새거 넣고
+      if (nickName?.length !== 0) {
+        new_nickDatas = new_nickDatas?.filter((ni) => ni !== nickName);
+      }
+
+      new_nickDatas.push(nick);
+
+      // nick 모음에 저장하기
+      setDoc(nickRef, { datas: new_nickDatas });
+
+      //개인 문서에 저장하기
+      let userRef = doc(dbService, "userData", user?.uid);
+
+      let userData = await getDoc(userRef);
+
+      let new_data;
+      if (userData.exists()) {
+        new_data = {
+          ...userData.data(),
+        };
+      } else {
+        new_data = {
+          board: [],
+          reply: [],
+        };
+      }
+
+      new_data["nickName"] = nick;
+
+      // nick 모음에 저장하기
+      setDoc(userRef, { ...new_data });
+    }
+
+    // userData - userUid   - nickName :  ,
+    //                                -  board : [ { } ] ,
+    //                                -   reply : [ { } ]
   };
 
   return (
@@ -723,8 +1222,6 @@ const Maps = () => {
       >
         {/* 학교 요약정보 */}
         {placeInfo && displayPlaceInfo()}
-        {/* 학교선택 시 상세정보 / 게시판 */}
-        {placeInfo && displayPlaceDesc()}
 
         {!placeInfo && displayInfoMain()}
         {/* 검색결과 보여주는 곳 */}
@@ -732,7 +1229,7 @@ const Maps = () => {
           keywordResults?.length > 0 &&
           getListItem(keywordResults)}
         {/* 페이지 보여주는 곳 */}
-        {keywordResults?.length > 0 && keyPageHtml()}
+        {!placeInfo && keywordResults?.length > 0 && keyPageHtml()}
         {/* 이용약관부분 */}
         <div
           onClick={() => setShowAgency(true)}
@@ -750,11 +1247,43 @@ const Maps = () => {
         </div>
       )}
 
+      {/* 학교선택하면.. 게시판 보여줄 부분 */}
+      {placeInfo && showBoard && (
+        <div
+          className={classes["placeinfo_board"]}
+          onMouseDown={kakao.maps.event.preventMap}
+          onTouchStart={kakao.maps.event.preventMap}
+        >
+          {displayPlaceDesc()}
+        </div>
+      )}
+
       {/* 로그인 화면 어두운 배경 */}
       {showLogin && <div className={classes["loginBg"]}></div>}
 
       {/* 로그인하는 modal */}
       {showLogin && <Auth onClose={() => setShowLogin(false)} />}
+
+      {/* 닉네임도 있고 게시판에 글 추가하는 modal */}
+      {showAddBoard && nickName !== "" && (
+        <Modal onClose={() => setShowAddBoard(false)} addStyle={"addBoard"}>
+          <AddBoard
+            onClose={() => setShowAddBoard(false)}
+            addBoardHandler={(title, text) => addBoardHandler(title, text)}
+          />
+        </Modal>
+      )}
+
+      {/* 닉네임이 없는 , 게시판에 글 추가하는 modal */}
+      {showAddBoard && nickName === "" && (
+        <Modal onClose={() => setShowAddBoard(false)} addStyle={"editNick"}>
+          <EditNick
+            onClose={() => setShowAddBoard(false)}
+            addNickHandler={addNickHandler}
+            nickName={nickName}
+          />
+        </Modal>
+      )}
 
       {/* 약관보기 */}
       {showAgency && (

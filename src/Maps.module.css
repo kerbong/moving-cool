@@ -10,11 +10,12 @@
   z-index: 2;
   padding: 0;
 }
-.placeinfo_wrap {
+.placeinfo_wrap,
+.placeinfo_board {
   position: absolute;
   top: 20px;
   left: 10px;
-  width: 310px;
+  width: 370px;
   height: 93vh;
   border-radius: 5px;
   border: 1px solid #909090;
@@ -35,7 +36,7 @@
 .placeinfo {
   display: flex;
   flex-direction: column;
-  padding: 20px 10px;
+  padding: 20px 10px 0 10px;
   align-items: center;
   position: relative;
 }
@@ -93,11 +94,42 @@
   height: 40px;
 }
 
+.board-div {
+  padding: 15px;
+  overflow-y: auto;
+  height: 95%;
+}
+
+.placeinfo_board {
+  left: 400px;
+  width: 430px;
+}
+
+.boardLi-bottom {
+  display: flex;
+  margin: 13px 0;
+  color: #717171;
+  justify-content: space-between;
+}
+
+.board-li {
+  list-style: none;
+  padding: 10px 15px 0px 15px;
+  background-color: #f1f1f1;
+  margin: 10px 0;
+  border-radius: 10px;
+}
+
+.reply-div {
+  margin: 10px;
+  display: flex;
+  align-items: flex-start;
+}
 .login-window {
   opacity: 1;
   top: 120px;
   position: absolute;
-  left: calc(50% - 200px);
+  left: calc(50% - 19s0px);
   margin: 20px auto;
   z-index: 100;
   box-sizing: border-box;
@@ -216,10 +248,48 @@
 
 .listItem-result {
   overflow: hidden overlay;
-  margin-top: 120px;
-  height: 500px;
+  margin-top: 100px;
+  height: 525px;
 }
 
+.board-title {
+  margin: 15px;
+  font-size: 20px;
+}
+
+.addBtn {
+  border-radius: 25px;
+  cursor: pointer;
+  width: 45px;
+  height: 45px;
+  font-size: 23px;
+  border: 0;
+  background-color: #6596c1;
+  position: fixed;
+  left: 770px;
+  top: 44px;
+  text-align: center;
+}
+
+.boardLi-text,
+.boardLi-title {
+  overflow: hidden;
+  word-break: break-all;
+}
+
+.textShowMore {
+  color: gray;
+  margin-left: 20px;
+  cursor: pointer;
+}
+.boardLi-text {
+}
+
+.boardLi-title {
+  margin: 7px;
+
+  font-size: 18px;
+}
 .listItem-li {
   list-style: none;
   padding: 5px 20px;
@@ -257,7 +327,7 @@
 
 .logo {
   position: absolute;
-  top: 35px;
+  top: 25px;
   left: 25px;
   width: 40px;
   height: 38px;
@@ -294,7 +364,8 @@
 
 .search-input {
   box-sizing: border-box;
-  width: 95%;
+  width: calc(103% - 30px);
+
   padding: 10px 35px 10px 50px;
   height: 50px;
   font-size: 16px;
@@ -324,7 +395,7 @@
 .search-btn {
   background-color: #ffffff00;
   position: absolute;
-  top: 44px;
+  top: 35px;
   right: 20px;
   border: 0;
   width: 35px;
@@ -352,9 +423,9 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 95%;
+  width: calc(100% - 15px);
   background-color: #2e3e4b;
-  padding: 30px 10px;
+  padding: 20px 10px;
   color: whitesmoke;
 }
 .flex-row-title {

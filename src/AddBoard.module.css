@@ -1,0 +1,63 @@
+.title {
+  font-size: 25px;
+  font-weight: bold;
+}
+
+.text-input,
+.textarea-input {
+  width: 90%;
+  margin: 10px;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 17px;
+  word-break: break-all;
+}
+
+.div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.xmark {
+  cursor: pointer;
+  padding: 10px;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+.rules,
+.rules2 {
+  font-size: 16px;
+  padding: 13px;
+  line-height: 30px;
+  background-color: #33506d;
+  margin: 5px 10px;
+  border-radius: 15px;
+  width: 475px;
+  color: whitesmoke;
+}
+
+.save-btn {
+  background-color: #6d3368;
+  border-radius: 20px;
+  width: 505px;
+  height: 55px;
+  font-size: 18px;
+  color: whitesmoke;
+  border: 0;
+  cursor: pointer;
+  margin: 10px 0;
+  letter-spacing: 3px;
+}
+
+.rules2 {
+  width: 370px;
+}
+
+.textarea-input {
+  font-family: Arial, sans-serif;
+  height: 258px;
+  resize: none;
+}

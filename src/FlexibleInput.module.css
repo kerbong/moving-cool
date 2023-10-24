@@ -1,0 +1,24 @@
+.board-reply {
+  width: 95%;
+  font-size: 14px;
+  padding: 11px 10px 9px 10px;
+  font-family: Arial, sans-serif;
+  height: 20px;
+  overflow-y: hidden;
+  resize: none;
+  border-radius: 10px;
+}
+
+.submitBtn {
+  padding: 8px;
+  position: relative;
+  top: -43px;
+  left: 312px;
+  border-radius: 10px;
+  border: 0;
+  background-color: #6596c13b;
+  color: #6596c1;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 13px;
+}
