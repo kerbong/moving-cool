@@ -51,7 +51,11 @@ const EditNick = (props) => {
         autoFocus
       />
 
-      <button onClick={nickHandler} className={classes["save-btn"]}>
+      <button
+        onClick={nickHandler}
+        className={classes["save-btn"]}
+        style={{ width: "400px" }}
+      >
         등록하기
       </button>
     </form>

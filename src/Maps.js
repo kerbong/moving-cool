@@ -15,6 +15,8 @@ import Modal from "./Modal";
 import AddBoard from "./AddBoard";
 import EditNick from "./EditNick";
 import FlexibleInput from "./FlexibleInput";
+import StarRatings from "react-star-ratings";
+
 dayjs.locale("ko");
 var relativeTime = require("dayjs/plugin/relativeTime");
 dayjs.extend(relativeTime);
@@ -33,6 +35,15 @@ const Maps = (props) => {
   const [ps, setPs] = useState(null);
   const [keywordResults, setKeywordResults] = useState([]);
   const [boards, setBoards] = useState([]);
+  const [reviews, setReviews] = useState({
+    mood: [],
+    acheive: [],
+    parents: [],
+    principal: [],
+    text: [],
+    reviewer: [],
+  });
+  const [recentDatas, setRecentDatas] = useState([]);
   const [keyResultsPages, setKeyResultsPages] = useState(null);
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -69,6 +80,9 @@ const Maps = (props) => {
   }, [user]);
 
   useEffect(() => {
+    //최신글 있는 학교목록 받아오기
+    getRecentDatas();
+
     const subscribe = authService.onAuthStateChanged((user) => {
       // console.log("실행");
       if (user) {
@@ -335,6 +349,14 @@ const Maps = (props) => {
       // setEvents([]);
       //기존에 있던 events들도 다 지우기
       setBoards([]);
+      setReviews({
+        mood: [],
+        acheive: [],
+        parents: [],
+        principal: [],
+        text: [],
+        reviewer: [],
+      });
 
       if (doc.exists()) {
         const sorted_datas = doc?.data()?.datas.sort(function (a, b) {
@@ -342,12 +364,31 @@ const Maps = (props) => {
         });
         sorted_datas.reverse();
         //최신것부터 보여주기.. 내림차순으로
-
         setBoards(sorted_datas);
+        //현재 학교의 리뷰관련 정보도 있으면 저장하기
+        if (doc?.data()?.reviews) {
+          setReviews(doc?.data()?.reviews);
+        }
       }
     });
   };
 
+  const getRecentDatas = () => {
+    let recentRef = doc(dbService, "boards", "0_recentDatas");
+
+    onSnapshot(recentRef, async (doc) => {
+      //최신글도 등록해두기
+      setRecentDatas([]);
+
+      if (doc.exists()) {
+        let new_recentDatas = doc.data().datas;
+        new_recentDatas = new_recentDatas.filter(
+          (data) => +dayjs().diff(dayjs(data.date), "day") < 6
+        );
+        setRecentDatas(new_recentDatas);
+      }
+    });
+  };
   //장소선택하면. 학교알리미에서 정보 받아오고 나눔 받기
   useEffect(() => {
     if (!placeInfo) return;
@@ -405,7 +446,7 @@ const Maps = (props) => {
     }
 
     var new_level = 0.003 * (level - 0.9);
-    map.panTo(new kakao.maps.LatLng(place.y, +place.x - new_level));
+    map.panTo(new kakao.maps.LatLng(+place.y, +place.x - new_level));
   };
 
   /** 선택된 학교 없애기 */
@@ -442,7 +483,16 @@ const Maps = (props) => {
               <div
                 className={classes["title"]}
                 // href={placeInfo.place_url}
-                title={placeInfo.place_name}
+                title={"클릭하여 네이버 검색하기"}
+                onClick={() => {
+                  window.open(
+                    `https://search.naver.com/search.naver?query=${
+                      placeInfo.place_name
+                    }+${placeInfo.road_address_name.split(" ")[0]}
+                `,
+                    "_blank"
+                  );
+                }}
               >
                 {placeInfo.place_name}
               </div>
@@ -578,8 +628,6 @@ const Maps = (props) => {
     setPlaceInfo(place);
     setPlaceName(place.place_name);
 
-    console.log(markers);
-
     //학교 정보 상태에 저장하기
     let place_name = place.place_name;
     setPlaceName(place_name);
@@ -711,7 +759,31 @@ const Maps = (props) => {
 
   /** 게시판의 내용 최종 변경 함수 */
   const saveBoardsDoc = async (ref, datas) => {
-    await setDoc(ref, { datas: datas });
+    await setDoc(ref, { datas: datas, reviews });
+  };
+
+  /** 게시글을 등록하면.. 최근 올라온 글이 속한 학교 목록에 보여주기 */
+  const saveRecentDatas = async () => {
+    const new_data = {
+      ...placeInfo,
+      date: dayjs().format("YYYY-MM-DD"),
+    };
+    const recentRef = doc(dbService, "boards", "0_recentDatas");
+
+    let new_recentDatas = recentDatas;
+    if (new_recentDatas?.length > 0) {
+      // 새로 추가하려는 학교 이미 있으면 제외하고
+      new_recentDatas = new_recentDatas.filter(
+        (data) =>
+          data.place_name !== new_data.place_name &&
+          data.road_address_name !== new_data.road_address_name
+      );
+      new_recentDatas.push(new_data);
+    } else {
+      new_recentDatas = [new_data];
+    }
+
+    await setDoc(recentRef, { datas: new_recentDatas });
   };
 
   /** 좋아요 하트 누르면 변경되는 함수 */
@@ -780,7 +852,7 @@ const Maps = (props) => {
 
     // console.log(new_boards);
 
-    await setDoc(boardRef, { datas: new_boards });
+    await setDoc(boardRef, { datas: new_boards, reviews: reviews });
     Swal.fire(
       "신고완료",
       "신고가 완료되었습니다. 보내주신 의견이 반영되기 까지는 시간이 소요될 수 있으니 양해 바랍니다.",
@@ -873,6 +945,7 @@ const Maps = (props) => {
       report: [], //신고하면..
       to: "", // 원댓글에 처음 댓글이면 빈칸..
     };
+
     //원글의 reply에 넣어줌
     let new_board = board;
     new_board.reply.push(data);
@@ -890,7 +963,9 @@ const Maps = (props) => {
       return new_data;
     });
 
-    await setDoc(boardRef, { datas: new_boards });
+    saveRecentDatas();
+
+    await setDoc(boardRef, { datas: new_boards, reviews: reviews });
   };
 
   /** 학교 상세 정보 목록들 보여주는 부분 */
@@ -917,6 +992,13 @@ const Maps = (props) => {
           </button>
 
           <ul style={{ padding: "5px 0" }}>
+            {/* 게시글 없으면... */}
+            {boards?.length === 0 && (
+              <p style={{ textAlign: "center" }}>
+                아직 글이 없어요! 첫 글을 작성해주세요!
+              </p>
+            )}
+
             {boards?.map((bd, index) => {
               //로그인하지 않은 상태면.. 최대 3개만 보여주고,
               if (!user && index > 2) return null;
@@ -1096,6 +1178,14 @@ const Maps = (props) => {
   /** 게시글 추가하는 함수 */
   const addBoardHandler = async (title, text) => {
     try {
+      // 글제목, 내용 둘중에 하나가 없어도 등록 실패
+      if (title?.length === 0 || text?.length === 0) {
+        Swal.fire("등록실패", "제목과 내용이 모두 필요합니다!", "warning");
+        return;
+      }
+
+      //너무 자주 도배할때..
+
       const data = {
         title,
         text,
@@ -1108,7 +1198,6 @@ const Maps = (props) => {
       };
 
       //기존 자료에 추가하고 저장하기
-      console.log(data);
 
       let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
 
@@ -1117,9 +1206,12 @@ const Maps = (props) => {
       let new_boards = boards;
       new_boards.push(data);
 
-      await setDoc(boardRef, { datas: new_boards });
+      await setDoc(boardRef, { datas: new_boards, reviews: reviews });
 
       setShowAddBoard(false);
+
+      //최근 올라온 글 문서에도 저장하기
+      saveRecentDatas();
     } catch (error) {
       Swal.fire(
         "저장 실패",
@@ -1180,10 +1272,85 @@ const Maps = (props) => {
       // nick 모음에 저장하기
       setDoc(userRef, { ...new_data });
     }
+  };
 
-    // userData - userUid   - nickName :  ,
-    //                                -  board : [ { } ] ,
-    //                                -   reply : [ { } ]
+  /** 최근 5일 이내에 올라온 학교 보여주기 */
+  const displayRecent = () => {
+    return (
+      <>
+        <div
+          className={classes["recentItem-div"]}
+          style={!placeInfo ? { marginTop: "82px", maxHeight: "550px" } : {}}
+        >
+          <hr className={classes["hr"]} />
+          <div className={classes["recent-title"]}>
+            <i
+              className="fa-solid fa-comment-medical fa-xl"
+              style={{ color: "#3f4e69" }}
+            ></i>
+            &nbsp; 최근 글 추가
+          </div>
+          {recentDatas?.map((pl, index) => (
+            <li
+              key={index}
+              className={classes["listItem-li"]}
+              onClick={() => {
+                keywordSchoolClick(pl);
+              }}
+            >
+              {/* 학교명 */}
+              <h5 className={classes["nameH5"]}>{pl.place_name}</h5>
+              {/* 주소 */}
+              <div className={classes["text-gray"]}>{pl.road_address_name}</div>
+            </li>
+          ))}
+        </div>
+      </>
+    );
+  };
+
+  /** 평균 계산햊ㅈ는 함수 */
+  const calculateAverage = (arr) => {
+    if (arr.length === 0) {
+      return 0; // 빈 배열인 경우, 평균은 0으로 처리
+    }
+
+    const sum = arr.reduce((acc, val) => acc + val, 0);
+    const average = sum / arr.length;
+
+    return average;
+  };
+
+  /** 학교의 리뷰들 보여주는  html */
+  const displayReviews = () => {
+    let options = [
+      { title: "분위기", param: "mood" },
+      { title: `학 군`, param: "achieve" },
+      { title: "학부모", param: "parents" },
+      { title: "관리자", param: "principal" },
+    ];
+    return (
+      <div>
+        <div className={classes["grid-container"]}>
+          {options?.map((op, index) => (
+            <div key={index} className={classes["grid-item"]}>
+              <span>{op.title}</span>{" "}
+              <span style={{ marginRight: "10px" }}>
+                <StarRatings
+                  rating={
+                    reviews?.[op.param]
+                      ? calculateAverage(reviews?.[op.param])
+                      : 0
+                  }
+                  starDimension="15px"
+                  starSpacing="1px"
+                />
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1223,7 +1390,17 @@ const Maps = (props) => {
         {/* 학교 요약정보 */}
         {placeInfo && displayPlaceInfo()}
 
+        {/* 학교펑점부분 */}
+        {placeInfo && displayReviews()}
+
+        {/* 최근 글,댓글이 추가된 학교목록 */}
+        {placeInfo && displayRecent()}
+
         {!placeInfo && displayInfoMain()}
+
+        {/* 최근 글이 올라온 학교 정보 / 검색상태가 아닐때 */}
+        {!placeInfo && keywordResults?.length === 0 && displayRecent()}
+
         {/* 검색결과 보여주는 곳 */}
         {!placeInfo &&
           keywordResults?.length > 0 &&

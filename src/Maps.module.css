@@ -153,6 +153,23 @@
   padding: 0 8px;
 }
 
+.recentItem-div {
+  overflow-y: auto;
+  height: auto;
+  margin-bottom: 15px;
+  max-height: 310px;
+}
+.hr {
+  height: 7px;
+  background-color: #ededed;
+  border: 0;
+}
+.recent-title {
+  margin: 15px;
+
+  font-size: 18px;
+}
+
 .agency-close {
   cursor: pointer;
   padding: 10px;
@@ -417,6 +434,23 @@
   font-size: 20px;
   margin-bottom: 15px;
   letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px; /* 각 셀 사이의 간격 설정 */
+  margin-top: 210px;
+}
+
+.grid-item {
+  background-color: white;
+  margin-left: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .search-div {
