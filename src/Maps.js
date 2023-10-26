@@ -16,18 +16,32 @@ import AddBoard from "./AddBoard";
 import EditNick from "./EditNick";
 import FlexibleInput from "./FlexibleInput";
 import StarRatings from "react-star-ratings";
+import AddReview from "./AddReview";
 
 dayjs.locale("ko");
 var relativeTime = require("dayjs/plugin/relativeTime");
 dayjs.extend(relativeTime);
 
+const nowYear =
+  +dayjs().format("MM") <= 2
+    ? String(+dayjs().format("YYYY") - 1)
+    : dayjs().format("YYYY");
+
 const SCHOOL_CATEGORY = ["초등", "중등", "고등"];
+
+let OPTIONS = [
+  { title: "분위기", param: "mood" },
+  { title: `학 군`, param: "achieve" },
+  { title: "학부모", param: "parents" },
+  { title: "관리자", param: "principal" },
+];
 
 const Maps = (props) => {
   const [map, setMap] = useState(null);
   const [placeInfo, setPlaceInfo] = useState(null);
   const [placeName, setPlaceName] = useState(null);
   const [showWindow, setShowWindow] = useState(false);
+  const [showReviewAll, setShowReviewAll] = useState(false);
   const [schoolInputValue, setSchoolInputValue] = useState("");
   const [searchedSchool, setSearchedSchool] = useState([]);
   const [markers, setMarkers] = useState([]);
@@ -37,18 +51,21 @@ const Maps = (props) => {
   const [boards, setBoards] = useState([]);
   const [reviews, setReviews] = useState({
     mood: [],
-    acheive: [],
+    achieve: [],
     parents: [],
     principal: [],
     text: [],
     reviewer: [],
   });
   const [recentDatas, setRecentDatas] = useState([]);
+  const [recentAreaDatas, setRecentAreaDatas] = useState([]);
+  const [areaDatas, setAreaDatas] = useState([]);
   const [keyResultsPages, setKeyResultsPages] = useState(null);
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showAgency, setShowAgency] = useState(false);
   const [showAddBoard, setShowAddBoard] = useState(false);
+  const [showAddReview, setShowAddReview] = useState(false);
   const [nickName, setNickName] = useState("");
   const [showBoard, setShowBoard] = useState(false);
 
@@ -80,9 +97,6 @@ const Maps = (props) => {
   }, [user]);
 
   useEffect(() => {
-    //최신글 있는 학교목록 받아오기
-    getRecentDatas();
-
     const subscribe = authService.onAuthStateChanged((user) => {
       // console.log("실행");
       if (user) {
@@ -227,7 +241,7 @@ const Maps = (props) => {
       markerImage = new kakao.maps.MarkerImage(
         imageSrc,
         imageSize
-        // imgOptions
+        // imgOPTIONS
       );
 
     let marker = new kakao.maps.Marker({
@@ -277,6 +291,7 @@ const Maps = (props) => {
           return new_data;
         });
         setPlaceInfo(place);
+        setShowReviewAll(false);
       });
     })(marker, pl);
 
@@ -351,7 +366,7 @@ const Maps = (props) => {
       setBoards([]);
       setReviews({
         mood: [],
-        acheive: [],
+        achieve: [],
         parents: [],
         principal: [],
         text: [],
@@ -376,6 +391,8 @@ const Maps = (props) => {
   const getRecentDatas = () => {
     let recentRef = doc(dbService, "boards", "0_recentDatas");
 
+    let recentAreaRef = doc(dbService, "area", "0_recentDatas");
+
     onSnapshot(recentRef, async (doc) => {
       //최신글도 등록해두기
       setRecentDatas([]);
@@ -388,16 +405,58 @@ const Maps = (props) => {
         setRecentDatas(new_recentDatas);
       }
     });
+    onSnapshot(recentAreaRef, async (doc) => {
+      //최신글도 등록해두기
+      setRecentAreaDatas([]);
+
+      if (doc.exists()) {
+        let new_recentDatas = doc.data().datas;
+        new_recentDatas = new_recentDatas.filter(
+          (data) => +dayjs().diff(dayjs(data.date), "day") < 6
+        );
+        setRecentAreaDatas(new_recentDatas);
+      }
+    });
   };
+
+  /** 도별? 게시글 받아오기 */
+  const getAreaData = async () => {
+    let addressName = placeInfo.road_address_name.split(" ");
+    let docName = addressName[0] + "*" + addressName[1];
+
+    let areaRef = doc(dbService, "area", docName);
+
+    onSnapshot(areaRef, (doc) => {
+      //지역별 게시글 정보 받아오기
+      setAreaDatas([]);
+
+      if (doc.exists()) {
+        setAreaDatas(doc.data().datas);
+      }
+    });
+  };
+  console.log(showBoard);
+
   //장소선택하면. 학교알리미에서 정보 받아오고 나눔 받기
   useEffect(() => {
-    if (!placeInfo) return;
+    if (!placeInfo) {
+      setShowBoard(false);
+      return;
+    }
+
     //게시판 창 띄우기
     setShowBoard(true);
+
     //선택된 학교의 알리미 정보 가져오기
     getSchoolInfoData(placeInfo, "09");
     getFirebaseData();
+    setAreaDatas([]);
   }, [placeInfo]);
+
+  useEffect(() => {
+    //최신글 있는 학교목록 받아오기
+    getRecentDatas();
+  }, []);
 
   /** 이전을 누르면 작동하는, 이전에 검색했던 학교 보여주는 함수 */
   const beforePlaceInfo = (placeName) => {
@@ -418,6 +477,8 @@ const Maps = (props) => {
 
     let new_placeInfo = searchedSchool[+new_index];
     setPlaceInfo(new_placeInfo);
+    //한줄리뷰 부분 숨기기
+    setShowReviewAll(false);
     setPlaceName(new_placeInfo.place_name);
 
     //새롭게 효과주고 state에 넣기 (마커에 없으면.. 마커를 추가하고 넣어줘야 하나)
@@ -452,6 +513,8 @@ const Maps = (props) => {
   /** 선택된 학교 없애기 */
   const removePlaceInfo = (placeName) => {
     setPlaceInfo(null);
+    //한줄리뷰 부분 숨기기
+    setShowReviewAll(false);
     setPlaceName(null);
     // 이미지랑 통통튀는 효과 없애기
     let nowImg = document.querySelector(`img[title='${placeName}']`);
@@ -494,7 +557,7 @@ const Maps = (props) => {
                   );
                 }}
               >
-                {placeInfo.place_name}
+                <u>{placeInfo.place_name}</u>
               </div>
 
               {/* 초기화면 */}
@@ -566,6 +629,8 @@ const Maps = (props) => {
 
     //현재 클릭된 학교 없애기
     setPlaceInfo(null);
+    //한줄리뷰 부분 숨기기
+    setShowReviewAll(false);
     setPlaceName("");
 
     ps.keywordSearch(keyword, keywordSearchHandler);
@@ -625,8 +690,8 @@ const Maps = (props) => {
 
     moveToSchool(place);
 
-    setPlaceInfo(place);
-    setPlaceName(place.place_name);
+    //한줄리뷰 부분 숨기기
+    setShowReviewAll(false);
 
     //학교 정보 상태에 저장하기
     let place_name = place.place_name;
@@ -757,27 +822,43 @@ const Maps = (props) => {
     </li>
   ));
 
-  /** 게시판의 내용 최종 변경 함수 */
-  const saveBoardsDoc = async (ref, datas) => {
-    await setDoc(ref, { datas: datas, reviews });
-  };
-
   /** 게시글을 등록하면.. 최근 올라온 글이 속한 학교 목록에 보여주기 */
   const saveRecentDatas = async () => {
-    const new_data = {
-      ...placeInfo,
-      date: dayjs().format("YYYY-MM-DD"),
-    };
-    const recentRef = doc(dbService, "boards", "0_recentDatas");
+    let new_data;
+    let recentRef;
+
+    if (showBoard) {
+      new_data = {
+        ...placeInfo,
+        date: dayjs().format("YYYY-MM-DD"),
+      };
+      recentRef = doc(dbService, "boards", "0_recentDatas");
+    } else {
+      let docN = placeInfo.road_address_name.split(" ");
+
+      new_data = {
+        address: docN[0] + "*" + docN[1],
+        date: dayjs().format("YYYY-MM-DD"),
+      };
+      recentRef = doc(dbService, "area", "0_recentDatas");
+    }
 
     let new_recentDatas = recentDatas;
     if (new_recentDatas?.length > 0) {
-      // 새로 추가하려는 학교 이미 있으면 제외하고
-      new_recentDatas = new_recentDatas.filter(
-        (data) =>
-          data.place_name !== new_data.place_name &&
-          data.road_address_name !== new_data.road_address_name
-      );
+      if (showBoard) {
+        // 새로 추가하려는 학교 이미 있으면 제외하고
+        new_recentDatas = new_recentDatas.filter(
+          (data) =>
+            data.place_name !== new_data.place_name &&
+            data.road_address_name !== new_data.road_address_name
+        );
+      } else {
+        // 새로 추가하려는 학교 이미 있으면 제외하고
+        new_recentDatas = new_recentDatas.filter(
+          (data) => data.address !== new_data.address
+        );
+      }
+
       new_recentDatas.push(new_data);
     } else {
       new_recentDatas = [new_data];
@@ -791,11 +872,23 @@ const Maps = (props) => {
     //로그인 되어 있지 않으면.. 로그인 화면 보여주기
     if (!checkLogin()) return;
 
-    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+    //showBoard상태면.. 학교 게시글, false면 지역 게시글
+    let docName;
+    let boardRef;
 
-    let boardRef = doc(dbService, "boards", docName);
+    if (showBoard) {
+      docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
 
-    let new_boardDoc = boards?.filter((data) => {
+      boardRef = doc(dbService, "boards", docName);
+    } else {
+      let docN = placeInfo.road_address_name.split(" ");
+      docName = docN[0] + "*" + docN[1];
+
+      boardRef = doc(dbService, "area", docName);
+    }
+    let nowDatas = showBoard ? boards : areaDatas;
+
+    let new_boardDoc = nowDatas?.filter((data) => {
       let new_data = data;
       if (data.id === bd.id && data.written === bd.written) {
         let new_bd = bd;
@@ -831,18 +924,34 @@ const Maps = (props) => {
     });
 
     // console.log(new_boardDoc);
-
-    saveBoardsDoc(boardRef, new_boardDoc);
+    if (showBoard) {
+      await setDoc(boardRef, { datas: new_boardDoc, reviews: reviews });
+    } else {
+      await setDoc(boardRef, { datas: new_boardDoc });
+    }
   };
 
   /**신고하기 저장하는 함수 */
   const reportSaveHandler = async (board) => {
-    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+    //showBoard상태면.. 학교 게시글, false면 지역 게시글
+    let docName;
+    let boardRef;
 
-    let boardRef = doc(dbService, "boards", docName);
+    if (showBoard) {
+      docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+
+      boardRef = doc(dbService, "boards", docName);
+    } else {
+      let docN = placeInfo.road_address_name.split(" ");
+      docName = docN[0] + "*" + docN[1];
+
+      boardRef = doc(dbService, "area", docName);
+    }
+    let nowDatas = showBoard ? boards : areaDatas;
 
     let new_boards = [];
-    boards.forEach((bd) => {
+
+    nowDatas.forEach((bd) => {
       let new_bd = bd;
       if (bd.id === board.id && bd.written === board.written) {
         new_bd = board;
@@ -851,8 +960,12 @@ const Maps = (props) => {
     });
 
     // console.log(new_boards);
+    if (showBoard) {
+      await setDoc(boardRef, { datas: new_boards, reviews: reviews });
+    } else {
+      await setDoc(boardRef, { datas: new_boards });
+    }
 
-    await setDoc(boardRef, { datas: new_boards, reviews: reviews });
     Swal.fire(
       "신고완료",
       "신고가 완료되었습니다. 보내주신 의견이 반영되기 까지는 시간이 소요될 수 있으니 양해 바랍니다.",
@@ -862,6 +975,15 @@ const Maps = (props) => {
 
   /** 신고하기 확인하는 함수 */
   const reportCheck = (bd, rep) => {
+    if (bd?.report?.filter((bd_rep) => bd_rep.uid === user.uid)?.length > 0) {
+      Swal.fire(
+        "신고 불가",
+        "이미 신고하신 글입니다! 조금 더 빠른 반영을 원하시면 kerbong@gmail.com으로 알려주세요!",
+        "warning"
+      );
+      return;
+    }
+
     Swal.fire({
       title: "신고할까요?",
       text: "글에 부적절한 내용이 포함되어 있다고 생각되시면 확인 버튼을 눌러주세요! 보내주신 의견을 검토한 후에 반영됩니다.",
@@ -950,11 +1072,22 @@ const Maps = (props) => {
     let new_board = board;
     new_board.reply.push(data);
 
-    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+    //showBoard상태면.. 학교 게시글, false면 지역 게시글
+    let docName;
+    let boardRef;
 
-    let boardRef = doc(dbService, "boards", docName);
+    if (showBoard) {
+      docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
 
-    let new_boards = boards;
+      boardRef = doc(dbService, "boards", docName);
+    } else {
+      let docN = placeInfo.road_address_name.split(" ");
+      docName = docN[0] + "*" + docN[1];
+
+      boardRef = doc(dbService, "area", docName);
+    }
+    let new_boards = showBoard ? boards : areaDatas;
+
     new_boards = new_boards.filter((nb) => {
       let new_data = nb;
       if (nb.id === new_board.id && nb.written === new_board.written) {
@@ -965,13 +1098,21 @@ const Maps = (props) => {
 
     saveRecentDatas();
 
-    await setDoc(boardRef, { datas: new_boards, reviews: reviews });
+    if (showBoard) {
+      await setDoc(boardRef, { datas: new_boards, reviews: reviews });
+    } else {
+      await setDoc(boardRef, { datas: new_boards });
+    }
   };
 
   /** 학교 상세 정보 목록들 보여주는 부분 */
   const displayPlaceDesc = () => {
     return (
-      <>
+      <div
+        className={classes["placeinfo_board"]}
+        onMouseDown={kakao.maps.event.preventMap}
+        onTouchStart={kakao.maps.event.preventMap}
+      >
         {/* QnA */}
         <div className={classes["board-div"]}>
           <h4 className={classes["board-title"]}>
@@ -995,7 +1136,7 @@ const Maps = (props) => {
             {/* 게시글 없으면... */}
             {boards?.length === 0 && (
               <p style={{ textAlign: "center" }}>
-                아직 글이 없어요! 첫 글을 작성해주세요!
+                아직 글이 없어요! 선생님의 첫 글을 기다립니다☺️
               </p>
             )}
 
@@ -1143,7 +1284,7 @@ const Maps = (props) => {
             )}
           </ul>
         </div>
-      </>
+      </div>
     );
   };
 
@@ -1198,15 +1339,29 @@ const Maps = (props) => {
       };
 
       //기존 자료에 추가하고 저장하기
+      //showBoard상태면.. 학교 게시글, false면 지역 게시글
+      let docName;
+      let boardRef;
 
-      let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+      if (showBoard) {
+        docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
 
-      let boardRef = doc(dbService, "boards", docName);
+        boardRef = doc(dbService, "boards", docName);
+      } else {
+        let docN = placeInfo.road_address_name.split(" ");
+        docName = docN[0] + "*" + docN[1];
 
-      let new_boards = boards;
+        boardRef = doc(dbService, "area", docName);
+      }
+      let new_boards = showBoard ? boards : areaDatas;
+
       new_boards.push(data);
 
-      await setDoc(boardRef, { datas: new_boards, reviews: reviews });
+      if (showBoard) {
+        await setDoc(boardRef, { datas: new_boards, reviews: reviews });
+      } else {
+        await setDoc(boardRef, { datas: new_boards });
+      }
 
       setShowAddBoard(false);
 
@@ -1280,15 +1435,15 @@ const Maps = (props) => {
       <>
         <div
           className={classes["recentItem-div"]}
-          style={!placeInfo ? { marginTop: "82px", maxHeight: "550px" } : {}}
+          style={!placeInfo ? { marginTop: "-8px" } : {}}
         >
           <hr className={classes["hr"]} />
           <div className={classes["recent-title"]}>
             <i
-              className="fa-solid fa-comment-medical fa-xl"
+              className="fa-solid fa-comment-medical fa-lg"
               style={{ color: "#3f4e69" }}
             ></i>
-            &nbsp; 최근 글 추가
+            &nbsp; 최근 글 추가{" "}
           </div>
           {recentDatas?.map((pl, index) => (
             <li
@@ -1321,18 +1476,30 @@ const Maps = (props) => {
     return average;
   };
 
-  /** 학교의 리뷰들 보여주는  html */
+  /** 리뷰쓰기 함수 */
+  const addReviewText = () => {
+    //해당 유저가 올해에 해당 학교에 리뷰 쓴 적이 있으면.. 불가능
+    if (
+      reviews?.reviewer?.filter(
+        (rev_data) => rev_data.uid === user.uid && rev_data.year === nowYear
+      )?.length > 0
+    ) {
+      Swal.fire(
+        "리뷰쓰기 불가",
+        "해당 학교의 리뷰를 이미 작성하셨네요! 학교 리뷰는 1년에 1건만 작성이 가능합니다!",
+        "warning"
+      );
+      return;
+    }
+    setShowAddReview(true);
+  };
+
+  /** 학교의 평점, 리뷰들 보여주는  html */
   const displayReviews = () => {
-    let options = [
-      { title: "분위기", param: "mood" },
-      { title: `학 군`, param: "achieve" },
-      { title: "학부모", param: "parents" },
-      { title: "관리자", param: "principal" },
-    ];
     return (
       <div>
         <div className={classes["grid-container"]}>
-          {options?.map((op, index) => (
+          {OPTIONS?.map((op, index) => (
             <div key={index} className={classes["grid-item"]}>
               <span>{op.title}</span>{" "}
               <span style={{ marginRight: "10px" }}>
@@ -1344,13 +1511,272 @@ const Maps = (props) => {
                   }
                   starDimension="15px"
                   starSpacing="1px"
+                  starRatedColor="#ffc700"
                 />
               </span>
             </div>
           ))}
         </div>
+        <hr className={classes["hr"]} />
+        {/* 리뷰 보기.. */}
+        <div>
+          <button
+            onClick={addReviewText}
+            className={classes["addRevBtn"]}
+            title="리뷰쓰기"
+          >
+            {" "}
+            +
+          </button>
+
+          {/* 한줄 리뷰 */}
+          <div
+            className={classes["recent-title"]}
+            style={{ marginTop: "-40px" }}
+          >
+            <i
+              className="fa-regular fa-comment-dots fa-lg"
+              style={{ color: "#3f4e69" }}
+            ></i>
+            &nbsp; 한 줄 리뷰
+          </div>
+          <ul className={classes["rev-ul"]}>
+            {/* 리뷰들 보여주기 */}
+            {reviews?.text?.length > 0 &&
+              reviews?.text?.map((rev, rev_i) => {
+                console.log(rev_i);
+                console.log(showReviewAll);
+                if (!showReviewAll && rev_i < 4) return false;
+
+                return (
+                  <li key={rev_i} className={classes["rev-li"]}>
+                    {rev}
+                  </li>
+                );
+              })}
+            {reviews?.text?.length > 0 && !showReviewAll && (
+              <div
+                className={classes["textShowMore"]}
+                onClick={() => setShowReviewAll(true)}
+              >
+                <u>더보기</u>
+              </div>
+            )}
+            {reviews?.text?.length === 0 && (
+              <p className={classes["rev-p"]}>선생님의 첫 리뷰를 기다립니다!</p>
+            )}
+          </ul>
+        </div>
       </div>
     );
+  };
+
+  /** 선택학교 해당 지역의 게시글 */
+  const displayArea = () => {
+    let areaName =
+      placeInfo.road_address_name.split(" ")[0] +
+      " " +
+      placeInfo.road_address_name.split(" ")[1];
+    return (
+      <div
+        className={classes["placeinfo_board"]}
+        onMouseDown={kakao.maps.event.preventMap}
+        onTouchStart={kakao.maps.event.preventMap}
+      >
+        <div className={classes["board-div"]}>
+          <h4 className={classes["board-title"]}>
+            {areaName} 게시판{" "}
+            {areaDatas?.length > 0 && <span>({areaDatas?.length})</span>}
+          </h4>
+          {/* 게시판 내용 추가 버튼 */}
+          <button
+            onClick={() => {
+              //로그인 되어 있지 않으면.. 로그인 화면 보여주기
+              if (!checkLogin()) return;
+              setShowAddBoard(true);
+            }}
+            className={classes["addBtn"]}
+            title="글쓰기"
+          >
+            {" "}
+            +
+          </button>
+
+          <ul style={{ padding: "5px 0" }}>
+            {/* 게시글 없으면... */}
+            {areaDatas?.length === 0 && (
+              <p style={{ textAlign: "center" }}>
+                아직 글이 없어요! 선생님의 첫 글을 기다립니다☺️
+              </p>
+            )}
+
+            {areaDatas?.map((area, index) => {
+              //로그인하지 않은 상태면.. 최대 3개만 보여주고,
+              if (!user && index > 2) return null;
+
+              return (
+                <li key={index} className={classes["board-li"]}>
+                  <div className={classes["boardLi-title"]}>{area.title}</div>
+                  <div className={classes["boardLi-text"]}>
+                    {truncateText(area.text, 60)}
+                  </div>
+
+                  {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                  <div className={classes["boardLi-bottom"]}>
+                    <div style={{ display: "flex" }}>
+                      {/* 닉네임 */}
+                      <div>{area.nickName}</div>
+
+                      {/* 며칠전 */}
+                      <div style={{ marginLeft: "15px" }}>
+                        {dayjs(area.id).fromNow()}
+                      </div>
+                      {/* 신고하기 */}
+                      <div
+                        style={{ marginLeft: "15px", cursor: "pointer" }}
+                        onClick={() => reportCheck(area)}
+                        title="신고하기"
+                      >
+                        <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                      </div>
+                    </div>
+                    {/* 좋아요 */}
+                    <div
+                      style={{ marginLeft: "15px", cursor: "pointer" }}
+                      onClick={() => likeHandler(area)}
+                    >
+                      {area.like.includes(user?.uid) ? (
+                        <i
+                          className="fa-solid fa-heart fa-sm"
+                          style={{ color: "#ff1d1d96" }}
+                        ></i>
+                      ) : (
+                        <i
+                          className="fa-regular fa-heart fa-sm"
+                          style={{ color: "#2e3e4b" }}
+                        ></i>
+                      )}{" "}
+                      {area.like.length}
+                    </div>
+                  </div>
+                  {/* 게시글의 댓글 보여주기 */}
+                  {area?.reply?.length > 0 && (
+                    <>
+                      <hr />
+                      {area?.reply?.map((rep, ind) => (
+                        <div key={ind} className={classes["reply-div"]}>
+                          <i
+                            className="fa-solid fa-reply fa-rotate-180"
+                            style={{
+                              color: "#3f4f6994",
+                              marginRight: "10px",
+                              marginTop: "5px",
+                            }}
+                          ></i>
+                          <div style={{ width: "100%" }}>
+                            <div>{truncateText(rep.text, 60)}</div>
+
+                            {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                            <div className={classes["boardLi-bottom"]}>
+                              <div style={{ display: "flex" }}>
+                                {/* 닉네임 */}
+                                <div>{rep.nickName}</div>
+
+                                {/* 며칠전 */}
+                                <div style={{ marginLeft: "15px" }}>
+                                  {dayjs(rep.id).fromNow()}
+                                </div>
+                                {/* 신고하기 */}
+                                <div
+                                  style={{
+                                    marginLeft: "15px",
+                                    cursor: "pointer",
+                                  }}
+                                  onClick={() => reportCheck(area, rep)}
+                                  title="신고하기"
+                                >
+                                  <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                                </div>
+                              </div>
+                              {/* 좋아요 */}
+                              <div
+                                style={{
+                                  marginLeft: "15px",
+                                  cursor: "pointer",
+                                }}
+                                onClick={() => likeHandler(area, rep)}
+                              >
+                                {rep.like.includes(user?.uid) ? (
+                                  <i
+                                    className="fa-solid fa-heart fa-sm"
+                                    style={{ color: "#ff1d1d96" }}
+                                  ></i>
+                                ) : (
+                                  <i
+                                    className="fa-regular fa-heart fa-sm"
+                                    style={{ color: "#2e3e4b" }}
+                                  ></i>
+                                )}{" "}
+                                {rep.like.length}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* 댓글다는 부분 */}
+                  <div className={classes["boardLi-bottom"]}>
+                    <FlexibleInput
+                      className={"board-reply"}
+                      placeholder={
+                        nickName
+                          ? `${nickName}님 댓글을 남겨주세요.`
+                          : "먼저 로그인 해주세요."
+                      }
+                      submitHandler={(v) => replyHandler(v, area)}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+
+            {/* 로그인하지 않은 상태면.. 로그인 버튼 보여주기 */}
+            {!user && (
+              <button
+                className={classes["login-btn"]}
+                style={{ width: "390px" }}
+                onClick={() => setShowLogin(true)}
+              >
+                로그인하고 게시글 더보기
+              </button>
+            )}
+          </ul>
+        </div>
+      </div>
+    );
+  };
+
+  /** 리뷰 추가하기 함수 */
+  const addReviewHandler = async (md, ach, pnt, prin, rev) => {
+    //기존 리뷰에 추가하기
+    let new_reviews = reviews;
+    new_reviews?.mood.push(+md);
+    new_reviews?.achieve.push(+ach);
+    new_reviews?.parents.push(+pnt);
+    new_reviews?.principal.push(+prin);
+
+    new_reviews?.text.push(rev);
+    new_reviews?.reviewer.push({ uid: user.uid, year: nowYear });
+
+    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+
+    let boardRef = doc(dbService, "boards", docName);
+
+    await setDoc(boardRef, { datas: boards, reviews: new_reviews });
+
+    setShowAddReview(false);
   };
 
   return (
@@ -1387,14 +1813,39 @@ const Maps = (props) => {
         onTouchStart={kakao.maps.event.preventMap}
         // dangerouslySetInnerHTML={{ __html: placeInfo }}
       >
-        {/* 학교 요약정보 */}
-        {placeInfo && displayPlaceInfo()}
+        {/* 학교선택된 상태에서 보이는 화면구성 */}
+        {placeInfo && (
+          <>
+            {/* 학교 검색창 + 요약정보 */}
+            {displayPlaceInfo()}
 
-        {/* 학교펑점부분 */}
-        {placeInfo && displayReviews()}
+            <div className={classes["plinfo-white-div"]}>
+              {/* 학교펑점부분 */}
+              {displayReviews()}
+              {/* 최근 글,댓글이 추가된 학교목록 */}
+              {displayRecent()}
 
-        {/* 최근 글,댓글이 추가된 학교목록 */}
-        {placeInfo && displayRecent()}
+              <hr className={classes["hr"]} />
+              {/* 해당 지역의 글 목록? 더보기 하면 새로운 창 띄워서 보여주기 */}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={() => {
+                    setShowBoard(false);
+                    getAreaData();
+                    getRecentDatas();
+                  }}
+                  className={classes["login-btn"]}
+                >
+                  {" "}
+                  {placeInfo.road_address_name.split(" ")[0] +
+                    " " +
+                    placeInfo.road_address_name.split(" ")[1]}{" "}
+                  지역 글보기
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
         {!placeInfo && displayInfoMain()}
 
@@ -1415,23 +1866,21 @@ const Maps = (props) => {
           이용약관 및 개인정보처리방침 보기
         </div>
       </div>
+
+      {placeInfo && showBoard && (
+        <>
+          {/* 학교선택하면.. 게시판 (해당 학교 혹은 해당 지역) 보여줄 부분 */}
+          {displayPlaceDesc()}
+        </>
+      )}
+      {placeInfo && !showBoard && <>{displayArea()}</>}
+
       {/* 학교 정보가 너무 많을 경우, 축소 권장하는 modal */}
       {showWindow && (
         <div className={classes["window"]}>
           지도 안에 학교가 너무 많네요!
           <br />
           정확한 정보를 위해 지도를 확대해주세요!
-        </div>
-      )}
-
-      {/* 학교선택하면.. 게시판 보여줄 부분 */}
-      {placeInfo && showBoard && (
-        <div
-          className={classes["placeinfo_board"]}
-          onMouseDown={kakao.maps.event.preventMap}
-          onTouchStart={kakao.maps.event.preventMap}
-        >
-          {displayPlaceDesc()}
         </div>
       )}
 
@@ -1445,6 +1894,7 @@ const Maps = (props) => {
       {showAddBoard && nickName !== "" && (
         <Modal onClose={() => setShowAddBoard(false)} addStyle={"addBoard"}>
           <AddBoard
+            showBoard={showBoard}
             onClose={() => setShowAddBoard(false)}
             addBoardHandler={(title, text) => addBoardHandler(title, text)}
           />
@@ -1458,6 +1908,20 @@ const Maps = (props) => {
             onClose={() => setShowAddBoard(false)}
             addNickHandler={addNickHandler}
             nickName={nickName}
+          />
+        </Modal>
+      )}
+
+      {/* 학교 리뷰쓰기 modal */}
+      {showAddReview && (
+        <Modal
+          onClose={() => setShowAddReview(false)}
+          addStyle={"addReviewDiv"}
+        >
+          <AddReview
+            addReviewHandler={addReviewHandler}
+            options={OPTIONS}
+            name={placeName}
           />
         </Modal>
       )}

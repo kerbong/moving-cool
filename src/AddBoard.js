@@ -49,7 +49,11 @@ const AddBoard = (props) => {
       </div>
       <span className={classes["rules"]}>
         <u>
-          <b>나의 경험, 직접 들은 이번 학년도 내용</b>
+          <b>
+            {props.showBoard
+              ? "나의 경험, 직접 들은 이번 학년도 내용"
+              : "나의 경험, 직접 들은 지역 관련 내용"}
+          </b>
         </u>
         을 위주로 적어주세요.
         <br /> 순화된 표현을 사용하여 공개된 곳에서 나와 우리를 지켜주세요.{" "}

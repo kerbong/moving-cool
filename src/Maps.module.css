@@ -157,17 +157,30 @@
   overflow-y: auto;
   height: auto;
   margin-bottom: 15px;
-  max-height: 310px;
+  max-height: 550px;
 }
+
+.plinfo-white-div {
+  height: 465px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .hr {
   height: 7px;
   background-color: #ededed;
   border: 0;
 }
+
 .recent-title {
   margin: 15px;
-
+  text-align: center;
   font-size: 18px;
+}
+
+.rev-p {
+  margin: 5px;
+  padding-left: 15px;
 }
 
 .agency-close {
@@ -265,7 +278,6 @@
 
 .listItem-result {
   overflow: hidden overlay;
-  margin-top: 100px;
   height: 525px;
 }
 
@@ -274,7 +286,8 @@
   font-size: 20px;
 }
 
-.addBtn {
+.addBtn,
+.addRevBtn {
   border-radius: 25px;
   cursor: pointer;
   width: 45px;
@@ -286,6 +299,41 @@
   left: 770px;
   top: 44px;
   text-align: center;
+}
+
+.addRevBtn {
+  position: relative;
+  left: 315px;
+  top: 5px;
+}
+
+.rev-li {
+  list-style: none;
+  margin: 5px 0;
+  font-size: 14px;
+  letter-spacing: -0.5px;
+  padding: 5px 2px 5px 10px;
+}
+
+.rev-li:hover {
+  background-color: lightgray;
+}
+
+.rev-ul {
+  height: auto;
+  max-height: 200px;
+  padding: 0;
+  overflow-y: auto;
+}
+
+/* 애니메이션 효과 설정 */
+@keyframes fadeOutScrollbar {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .boardLi-text,
@@ -442,7 +490,7 @@
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: 10px; /* 각 셀 사이의 간격 설정 */
-  margin-top: 210px;
+  margin: 15px 0 5px 0;
 }
 
 .grid-item {
@@ -454,7 +502,7 @@
 }
 
 .search-div {
-  position: absolute;
+  position: sticky;
   top: 0;
   left: 0;
   width: calc(100% - 15px);
