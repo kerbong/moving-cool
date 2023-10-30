@@ -178,8 +178,21 @@
   font-size: 18px;
 }
 
+.notice-title,
+.notice-text {
+  font-size: 30px;
+  margin: 20px;
+  text-align: center;
+}
+
+.notice-text {
+  font-size: 20px;
+  margin-top: 30px;
+}
+
 .rev-p {
   margin: 5px;
+  color: gray;
   padding-left: 15px;
 }
 
