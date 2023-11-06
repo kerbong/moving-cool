@@ -332,11 +332,18 @@
   background-color: lightgray;
 }
 
-.rev-ul {
+.rev-ul,
+.rev-ul-nouser {
   height: auto;
   max-height: 200px;
   padding: 0;
   overflow-y: auto;
+}
+
+.rev-ul-nouser {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 애니메이션 효과 설정 */
@@ -532,4 +539,17 @@
 .search-form {
   display: flex;
   justify-content: center;
+}
+
+.ratingOver-div {
+  position: absolute;
+  background-color: #ffffffcd;
+  width: 350px;
+  left: 10px;
+  top: 200px;
+  z-index: 50;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }

@@ -1168,7 +1168,8 @@ const Maps = (props) => {
         {/* QnA */}
         <div className={classes["board-div"]}>
           <h4 className={classes["board-title"]}>
-            게시판{boards?.length > 0 && <span>({boards?.length})</span>}
+            [{placeInfo?.place_name}] 게시판
+            {boards?.length > 0 && <span>({boards?.length})</span>}
           </h4>
           {/* 게시판 내용 추가 버튼 */}
           <button
@@ -1186,7 +1187,7 @@ const Maps = (props) => {
 
           <ul style={{ padding: "5px 0" }}>
             {/* 게시글 없으면... */}
-            {boards?.length === 0 && (
+            {user && boards?.length === 0 && (
               <p style={{ textAlign: "center" }}>
                 아직 글이 없어요! 선생님의 첫 글을 기다립니다☺️
               </p>
@@ -1331,7 +1332,7 @@ const Maps = (props) => {
                 style={{ width: "390px" }}
                 onClick={() => setShowLogin(true)}
               >
-                로그인하고 게시글 더보기
+                로그인하고 게시글 보기
               </button>
             )}
           </ul>
@@ -1591,6 +1592,9 @@ const Maps = (props) => {
         "warning"
       );
       return;
+    } else if (!user) {
+      setShowLogin(true);
+      return;
     }
     setShowAddReview(true);
   };
@@ -1606,7 +1610,7 @@ const Maps = (props) => {
               <span style={{ marginRight: "10px" }}>
                 <StarRatings
                   rating={
-                    reviews?.[op.param]
+                    user && reviews?.[op.param]
                       ? calculateAverage(reviews?.[op.param])
                       : 0
                   }
@@ -1618,6 +1622,12 @@ const Maps = (props) => {
             </div>
           ))}
         </div>
+        {/* 로그인 하지 않을 경우, 흐리게 보임. */}
+        {!user && (
+          <div className={classes["ratingOver-div"]}>
+            🚧 로그인 후에 평점을 확인해주세요!
+          </div>
+        )}
         <hr className={classes["hr"]} />
         {/* 리뷰 보기.. */}
         <div>
@@ -1641,32 +1651,43 @@ const Maps = (props) => {
             ></i>
             &nbsp; 학교 한줄평
           </div>
-          <ul className={classes["rev-ul"]}>
-            {/* 리뷰들 보여주기 */}
-            {reviews?.text?.length > 0 &&
-              reviews?.text?.map((rev, rev_i) => {
-                console.log(rev_i);
-                console.log(showReviewAll);
-                if (!showReviewAll && rev_i < 4) return false;
+          {user && (
+            <ul className={classes["rev-ul"]}>
+              {/* 리뷰들 보여주기 */}
+              {reviews?.text?.length > 0 &&
+                reviews?.text?.map((rev, rev_i) => {
+                  console.log(rev_i);
+                  console.log(showReviewAll);
+                  if (!showReviewAll && rev_i < 4) return false;
 
-                return (
-                  <li key={rev_i} className={classes["rev-li"]}>
-                    {rev}
-                  </li>
-                );
-              })}
-            {reviews?.text?.length > 0 && !showReviewAll && (
-              <div
-                className={classes["textShowMore"]}
-                onClick={() => setShowReviewAll(true)}
-              >
-                <u>더보기</u>
-              </div>
-            )}
-            {reviews?.text?.length === 0 && (
-              <p className={classes["rev-p"]}>선생님의 첫 리뷰를 기다립니다!</p>
-            )}
-          </ul>
+                  return (
+                    <li key={rev_i} className={classes["rev-li"]}>
+                      {rev}
+                    </li>
+                  );
+                })}
+              {reviews?.text?.length > 0 && !showReviewAll && (
+                <div
+                  className={classes["textShowMore"]}
+                  onClick={() => setShowReviewAll(true)}
+                >
+                  <u>더보기</u>
+                </div>
+              )}
+              {reviews?.text?.length === 0 && (
+                <p className={classes["rev-p"]}>
+                  선생님의 첫 리뷰를 기다립니다!
+                </p>
+              )}
+            </ul>
+          )}
+
+          {/* 로그인 안하면..  */}
+          {!user && (
+            <ul className={classes["rev-ul-nouser"]}>
+              🚧 로그인 후에 한줄평을 확인해주세요!
+            </ul>
+          )}
         </div>
       </div>
     );
@@ -1701,7 +1722,7 @@ const Maps = (props) => {
 
           <ul style={{ padding: "5px 0" }}>
             {/* 게시글 없으면... */}
-            {areaDatas?.length === 0 && (
+            {user && areaDatas?.length === 0 && (
               <p style={{ textAlign: "center" }}>
                 아직 글이 없어요! 선생님의 첫 글을 기다립니다☺️
               </p>
@@ -1846,7 +1867,7 @@ const Maps = (props) => {
                 style={{ width: "390px" }}
                 onClick={() => setShowLogin(true)}
               >
-                로그인하고 게시글 더보기
+                로그인하고 게시글 보기
               </button>
             )}
           </ul>
