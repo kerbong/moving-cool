@@ -58,6 +58,10 @@ const AddReview = (props) => {
     <div className={classes["review-div"]}>
       <h2 className={classes["title"]}>{props.name} 리뷰</h2>
       <p className={classes["p"]}> * 학교당 1년에 한 건만 저장이 가능해요</p>
+      <p className={classes["p"]}>
+        {" "}
+        * 특정 인물이나 사건의 언급을 자제해주세요
+      </p>
       {/* 별점 평가 부분 그리드*/}
       <div className={classes["options-div"]}>
         {props.options?.map((op) => (
@@ -89,7 +93,7 @@ const AddReview = (props) => {
         <input
           type="text"
           className={classes["text-input"]}
-          placeholder="한 줄 리뷰 (전반적으로 가장 인상깊은 부분)"
+          placeholder="학교 한줄평 (전반적으로 가장 인상깊은 부분)"
           onChange={inputHandler}
           value={text}
         />
