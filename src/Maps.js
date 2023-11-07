@@ -384,7 +384,9 @@ const Maps = (props) => {
 
   /** 파이어베이스에서 학교 관련 내용 받아오는 함수 */
   const getFirebaseData = async () => {
-    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+    let docName = placeInfo?.road_address_name
+      ? placeInfo.place_name + "*" + placeInfo.road_address_name
+      : placeInfo.place_name + "*" + placeInfo.address_name;
 
     let boardRef = doc(dbService, "boards", docName);
 
@@ -452,7 +454,9 @@ const Maps = (props) => {
     let addressName;
     let docName;
     if (placeInfo) {
-      addressName = placeInfo.road_address_name.split(" ");
+      addressName = placeInfo?.road_address_name
+        ? placeInfo.road_address_name.split(" ")
+        : placeInfo.address_name.split(" ");
       docName = addressName[0] + "*" + addressName[1];
     } else {
       docName = area;
@@ -584,7 +588,10 @@ const Maps = (props) => {
                   window.open(
                     `https://search.naver.com/search.naver?query=${
                       placeInfo.place_name
-                    }+${placeInfo.road_address_name.split(" ")[0]}
+                    }+${
+                      placeInfo.road_address_name.split(" ")[0] ||
+                      placeInfo.address_name.split(" ")[0]
+                    }
                 `,
                     "_blank"
                   );
@@ -867,7 +874,9 @@ const Maps = (props) => {
       };
       recentRef = doc(dbService, "boards", "0_recentDatas");
     } else {
-      let docN = placeInfo.road_address_name.split(" ");
+      let docN = placeInfo?.road_address_name
+        ? placeInfo.road_address_name.split(" ")
+        : placeInfo.address_name.split(" ");
 
       new_data = {
         address: docN[0] + "*" + docN[1],
@@ -884,7 +893,8 @@ const Maps = (props) => {
         new_recentDatas = new_recentDatas.filter(
           (data) =>
             data.place_name !== new_data.place_name &&
-            data.road_address_name !== new_data.road_address_name
+            data.road_address_name !== new_data.road_address_name &&
+            data.address_name !== new_data.address_name
         );
       } else {
         // 새로 추가하려는 학교 이미 있으면 제외하고
@@ -911,11 +921,15 @@ const Maps = (props) => {
     let boardRef;
 
     if (showBoard) {
-      docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+      docName = placeInfo.road_address_name
+        ? placeInfo.place_name + "*" + placeInfo.road_address_name
+        : placeInfo.place_name + "*" + placeInfo.address_name;
 
       boardRef = doc(dbService, "boards", docName);
     } else {
-      let docN = placeInfo.road_address_name.split(" ");
+      let docN = placeInfo.road_address_name
+        ? placeInfo.road_address_name.split(" ")
+        : placeInfo.address_name.split(" ");
       docName = docN[0] + "*" + docN[1];
 
       boardRef = doc(dbService, "area", docName);
@@ -973,13 +987,17 @@ const Maps = (props) => {
     let docNameRef;
 
     if (showBoard) {
-      docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+      docName = placeInfo.road_address_name
+        ? placeInfo.place_name + "*" + placeInfo.road_address_name
+        : placeInfo.place_name + "*" + placeInfo.address_name;
 
       boardRef = doc(dbService, "boards", docName);
 
       docNameRef = "boards*" + docName;
     } else {
-      let docN = placeInfo.road_address_name.split(" ");
+      let docN = placeInfo.road_address_name
+        ? placeInfo.road_address_name.split(" ")
+        : placeInfo.address_name.split(" ");
       docName = docN[0] + "*" + docN[1];
 
       boardRef = doc(dbService, "area", docName);
@@ -1123,11 +1141,15 @@ const Maps = (props) => {
     let boardRef;
 
     if (showBoard) {
-      docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+      docName = placeInfo.road_address_name
+        ? placeInfo.place_name + "*" + placeInfo.road_address_name
+        : placeInfo.place_name + "*" + placeInfo.address_name;
 
       boardRef = doc(dbService, "boards", docName);
     } else {
-      let docN = placeInfo.road_address_name.split(" ");
+      let docN = placeInfo.road_address_name
+        ? placeInfo.road_address_name.split(" ")
+        : placeInfo.address_name.split(" ");
       docName = docN[0] + "*" + docN[1];
 
       boardRef = doc(dbService, "area", docName);
@@ -1397,11 +1419,15 @@ const Maps = (props) => {
       let boardRef;
 
       if (showBoard) {
-        docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+        docName = placeInfo.road_address_name
+          ? placeInfo.place_name + "*" + placeInfo.road_address_name
+          : placeInfo.place_name + "*" + placeInfo.address_name;
 
         boardRef = doc(dbService, "boards", docName);
       } else {
-        let docN = placeInfo.road_address_name.split(" ");
+        let docN = placeInfo.road_address_name
+          ? placeInfo.road_address_name.split(" ")
+          : placeInfo.address_name.split(" ");
         docName = docN[0] + "*" + docN[1];
 
         boardRef = doc(dbService, "area", docName);
@@ -1519,7 +1545,9 @@ const Maps = (props) => {
               {/* 학교명 */}
               <h5 className={classes["nameH5"]}>{pl.place_name}</h5>
               {/* 주소 */}
-              <div className={classes["text-gray"]}>{pl.road_address_name}</div>
+              <div className={classes["text-gray"]}>
+                {pl.road_address_name || pl.address_name}
+              </div>
             </li>
           ))}
         </div>
@@ -1656,9 +1684,9 @@ const Maps = (props) => {
               {/* 리뷰들 보여주기 */}
               {reviews?.text?.length > 0 &&
                 reviews?.text?.map((rev, rev_i) => {
-                  console.log(rev_i);
-                  console.log(showReviewAll);
-                  if (!showReviewAll && rev_i < 4) return false;
+                  // console.log(rev_i);
+                  // console.log(showReviewAll);
+                  if (!showReviewAll && rev_i > 3) return false;
 
                   return (
                     <li key={rev_i} className={classes["rev-li"]}>
@@ -1666,7 +1694,7 @@ const Maps = (props) => {
                     </li>
                   );
                 })}
-              {reviews?.text?.length > 0 && !showReviewAll && (
+              {reviews?.text?.length > 3 && !showReviewAll && (
                 <div
                   className={classes["textShowMore"]}
                   onClick={() => setShowReviewAll(true)}
@@ -1888,7 +1916,9 @@ const Maps = (props) => {
     new_reviews?.text.push(rev);
     new_reviews?.reviewer.push({ uid: user.uid, year: nowYear });
 
-    let docName = placeInfo.place_name + "*" + placeInfo.road_address_name;
+    let docName = placeInfo.road_address_name
+      ? placeInfo.place_name + "*" + placeInfo.road_address_name
+      : placeInfo.place_name + "*" + placeInfo.address_name;
 
     let boardRef = doc(dbService, "boards", docName);
 
@@ -1899,6 +1929,8 @@ const Maps = (props) => {
 
     setShowAddReview(false);
   };
+
+  console.log(placeInfo);
 
   /** 신고하면 email 자동으로 보내주는 함수 */
   const reportEmail = async (data, doc) => {
@@ -2001,17 +2033,25 @@ const Maps = (props) => {
                     getAreaData();
                     getRecentDatas();
                     setNowArea(
-                      placeInfo.road_address_name.split(" ")[0] +
-                        " " +
-                        placeInfo.road_address_name.split(" ")[1]
+                      placeInfo.road_address_name
+                        ? placeInfo.road_address_name.split(" ")[0] +
+                            " " +
+                            placeInfo.road_address_name.split(" ")[1]
+                        : placeInfo.address_name.split(" ")[0] +
+                            " " +
+                            placeInfo.address_name.split(" ")[1]
                     );
                   }}
                   className={classes["login-btn"]}
                 >
                   {" "}
-                  {placeInfo.road_address_name.split(" ")[0] +
-                    " " +
-                    placeInfo.road_address_name.split(" ")[1]}{" "}
+                  {placeInfo.road_address_name
+                    ? placeInfo.road_address_name.split(" ")[0] +
+                      " " +
+                      placeInfo.road_address_name.split(" ")[1]
+                    : placeInfo.address_name.split(" ")[0] +
+                      " " +
+                      placeInfo.address_name.split(" ")[1]}{" "}
                   지역 글보기
                 </button>
               </div>
