@@ -311,6 +311,10 @@ const Maps = (props) => {
 
         //학교 정보 상태에 저장하기
         let place_name = place.place_name;
+
+        //만약 학교가 아니면.. 학교정보에 저장하지 않기
+        if (!place_name.includes("학교")) return;
+
         setPlaceName(place_name);
         setSearchedSchool((prev) => {
           let new_data = prev || [];
@@ -455,7 +459,7 @@ const Maps = (props) => {
   const getAreaData = async (area) => {
     let addressName;
     let docName;
-    if (placeInfo) {
+    if (!area) {
       addressName = placeInfo?.road_address_name
         ? placeInfo.road_address_name.split(" ")
         : placeInfo.address_name.split(" ");
@@ -727,7 +731,7 @@ const Maps = (props) => {
   /** 학교 클릭하면... 최상단으로 스크롤 보냄. */
   useEffect(() => {
     if (!revSchoolRef.current) return;
-    console.log(revSchoolRef.current.scrollTop);
+
     revSchoolRef.current.scrollTop = 0;
   }, [placeInfo]);
 
@@ -744,6 +748,10 @@ const Maps = (props) => {
 
     //학교 정보 상태에 저장하기
     let place_name = place.place_name;
+
+    //만약 학교가 아니면.. 학교정보에 저장하지 않기
+    if (!place_name.includes("학교")) return;
+
     setPlaceName(place_name);
     setSearchedSchool((prev) => {
       let new_data = prev || [];
@@ -1199,7 +1207,11 @@ const Maps = (props) => {
         {/* QnA */}
         <div className={classes["board-div"]}>
           <h4 className={classes["board-title"]}>
-            [{placeInfo?.place_name}] 게시판
+            <i
+              className="fa-solid fa-school-flag fa-sm"
+              style={{ color: "#3f4e69" }}
+            ></i>{" "}
+            {placeInfo?.place_name} | 게시판
             {boards?.length > 0 && <span>({boards?.length})</span>}
           </h4>
           {/* 게시판 내용 추가 버튼 */}
@@ -1214,6 +1226,34 @@ const Maps = (props) => {
           >
             {" "}
             +
+          </button>
+          {/* 학교 선택 중 = 지역 글보기 버튼 */}
+          <button
+            onClick={() => {
+              setShowBoard(false);
+              getAreaData();
+              getRecentDatas();
+              setNowArea(
+                placeInfo.road_address_name
+                  ? placeInfo.road_address_name.split(" ")[0] +
+                      " " +
+                      placeInfo.road_address_name.split(" ")[1]
+                  : placeInfo.address_name.split(" ")[0] +
+                      " " +
+                      placeInfo.address_name.split(" ")[1]
+              );
+            }}
+            className={classes["login-btn"]}
+          >
+            {" "}
+            {placeInfo.road_address_name
+              ? placeInfo.road_address_name.split(" ")[0] +
+                " " +
+                placeInfo.road_address_name.split(" ")[1]
+              : placeInfo.address_name.split(" ")[0] +
+                " " +
+                placeInfo.address_name.split(" ")[1]}{" "}
+            지역 글보기
           </button>
 
           <ul style={{ padding: "5px 0" }}>
@@ -1740,7 +1780,11 @@ const Maps = (props) => {
       >
         <div className={classes["board-div"]}>
           <h4 className={classes["board-title"]}>
-            [{nowArea}] 게시판{" "}
+            <i
+              className="fa-solid fa-location-crosshairs"
+              style={{ color: "#3f4e69" }}
+            ></i>{" "}
+            {nowArea} | 게시판
             {areaDatas?.length > 0 && <span>({areaDatas?.length})</span>}
           </h4>
           {/* 게시판 내용 추가 버튼 */}
@@ -1756,6 +1800,20 @@ const Maps = (props) => {
             {" "}
             +
           </button>
+          {/* 이전 학교가 있을 때?? 이전 학교 글보기 버튼 */}
+          {placeInfo && (
+            <button
+              onClick={() => {
+                setAreaDatas([]);
+                setShowBoard(true);
+                setNowArea("");
+              }}
+              className={classes["login-btn"]}
+            >
+              {" "}
+              ({placeInfo?.place_name}) 글보기
+            </button>
+          )}
 
           <ul style={{ padding: "5px 0" }}>
             {/* 게시글 없으면... */}
