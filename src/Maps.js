@@ -99,6 +99,8 @@ const Maps = (props) => {
 
   const { kakao } = window;
 
+  const revSchoolRef = useRef();
+
   var currCategory = "초등";
 
   /** 파이어베이스에서 학교 관련 내용 받아오는 함수 */
@@ -430,7 +432,7 @@ const Maps = (props) => {
       if (doc.exists()) {
         let new_recentDatas = doc.data().datas;
         new_recentDatas = new_recentDatas.filter(
-          (data) => +dayjs().diff(dayjs(data.date), "day") < 6
+          (data) => +dayjs().diff(dayjs(data.date), "day") < 14
         );
         setRecentDatas(new_recentDatas);
       }
@@ -442,7 +444,7 @@ const Maps = (props) => {
       if (doc.exists()) {
         let new_recentAreaDatas = doc.data().datas;
         new_recentAreaDatas = new_recentAreaDatas.filter(
-          (data) => +dayjs().diff(dayjs(data.date), "day") < 6
+          (data) => +dayjs().diff(dayjs(data.date), "day") < 14
         );
         setRecentAreaDatas(new_recentAreaDatas);
       }
@@ -721,6 +723,13 @@ const Maps = (props) => {
       map.setBounds(bounds);
     }
   };
+
+  /** 학교 클릭하면... 최상단으로 스크롤 보냄. */
+  useEffect(() => {
+    if (!revSchoolRef.current) return;
+    console.log(revSchoolRef.current.scrollTop);
+    revSchoolRef.current.scrollTop = 0;
+  }, [placeInfo]);
 
   /** 키워드로 찾은 학교를 클릭하면 모든 markers다 지운 후에 현재 학교 그려주기! */
   const keywordSchoolClick = (place) => {
@@ -1930,7 +1939,7 @@ const Maps = (props) => {
     setShowAddReview(false);
   };
 
-  console.log(placeInfo);
+  // console.log(placeInfo);
 
   /** 신고하면 email 자동으로 보내주는 함수 */
   const reportEmail = async (data, doc) => {
@@ -2017,7 +2026,7 @@ const Maps = (props) => {
             {/* 학교 검색창 + 요약정보 */}
             {displayPlaceInfo()}
 
-            <div className={classes["plinfo-white-div"]}>
+            <div ref={revSchoolRef} className={classes["plinfo-white-div"]}>
               {/* 학교펑점부분 */}
               {displayReviews()}
               {/* 최근 글,댓글이 추가된 학교목록 */}
@@ -2026,7 +2035,13 @@ const Maps = (props) => {
               <hr className={classes["hr"]} />
 
               {/* 해당 지역의 글 목록? 더보기 하면 새로운 창 띄워서 보여주기 */}
-              <div style={{ display: "flex", justifyContent: "center" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginBottom: "40px",
+                }}
+              >
                 <button
                   onClick={() => {
                     setShowBoard(false);
