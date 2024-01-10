@@ -1,6 +1,7 @@
 .title {
   text-align: center;
   margin: 20px;
+  word-break: keep-all;
 }
 .p {
   text-align: center;
@@ -29,13 +30,18 @@
   margin: 15px 0 5px 0;
 }
 
-.text-input {
+.text-input,
+.text-input-mobile {
   width: 440px;
   margin: 20px 10px;
   padding: 15px;
   border-radius: 10px;
   font-size: 17px;
   word-break: break-all;
+}
+
+.text-input-mobile {
+  width: 85%;
 }
 
 .span {

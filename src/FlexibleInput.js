@@ -46,7 +46,7 @@ const FlexibleInput = React.forwardRef((props, ref) => {
   };
 
   return (
-    <form onSubmit={submitHandler} style={{ width: "100%" }}>
+    <form onSubmit={submitHandler} className={classes["form"]}>
       <textarea
         id={props.id}
         ref={noteRef}

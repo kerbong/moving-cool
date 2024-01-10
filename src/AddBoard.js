@@ -47,7 +47,10 @@ const AddBoard = (props) => {
           <i className="fa-solid fa-xmark fa-xl"></i>
         </span>
       </div>
-      <span className={classes["rules"]}>
+      <span
+        className={classes["rules"]}
+        style={!props.isMobile ? {} : { width: "90%" }}
+      >
         <u>
           <b>
             {props.showBoard
@@ -74,7 +77,11 @@ const AddBoard = (props) => {
         onChange={inputHandler}
         value={text}
       />
-      <button onClick={boardHandler} className={classes["save-btn"]}>
+      <button
+        onClick={boardHandler}
+        className={classes["save-btn"]}
+        style={!props.isMobile ? {} : { width: "100%" }}
+      >
         등록하기
       </button>
     </form>

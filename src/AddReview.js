@@ -35,7 +35,6 @@ const AddReview = (props) => {
     } else if (name === "principal") {
       setPrincipal(newRating);
     }
-    console.log(newRating);
   };
 
   /** 리뷰 추가 함수 */
@@ -64,8 +63,8 @@ const AddReview = (props) => {
       </p>
       {/* 별점 평가 부분 그리드*/}
       <div className={classes["options-div"]}>
-        {props.options?.map((op) => (
-          <div className={classes["option-div"]}>
+        {props.options?.map((op, ind) => (
+          <div className={classes["option-div"]} key={ind}>
             <span className={classes["span"]}>{op.title}</span>
             <span>
               <StarRatings
@@ -89,18 +88,29 @@ const AddReview = (props) => {
         ))}
       </div>
       {/* 한줄 리뷰쓰기 */}
-      <div>
+      <div style={!props.isMobile ? {} : { width: "100%" }}>
         <input
           type="text"
-          className={classes["text-input"]}
+          className={
+            !props.isMobile
+              ? classes["text-input"]
+              : classes["text-input-mobile"]
+          }
           placeholder="학교 한줄평 (전반적으로 가장 인상깊은 부분)"
           onChange={inputHandler}
           value={text}
         />
       </div>
       {/* 등록하기 버튼 */}
-      <div className={classes["option-div"]}>
-        <button onClick={reviewHandler} className={classes["save-btn"]}>
+      <div
+        className={classes["option-div"]}
+        style={!props.isMobile ? {} : { width: "100%" }}
+      >
+        <button
+          onClick={reviewHandler}
+          className={classes["save-btn"]}
+          style={!props.isMobile ? {} : { width: "100%" }}
+        >
           등록하기
         </button>
       </div>

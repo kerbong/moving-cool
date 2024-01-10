@@ -84,3 +84,14 @@
   width: 530px;
   height: 650px;
 }
+
+.notice_mobile {
+  width: 85vw;
+  height: 90vh;
+}
+
+.basic_mobile {
+  width: 92vw;
+  height: auto;
+  padding: 15px;
+}

@@ -3,6 +3,7 @@ import classes from "./Maps.module.css";
 import schoolPng from "./img/schoolMarker.png";
 import schoolClickedPng from "./img/schoolMarkerClicked.png";
 import logoPng from "./img/logo192.png";
+import whiteLogoPng from "./img/white_logo192.png";
 import Auth from "./Auth";
 import { authService, dbService } from "./fbase";
 import Swal from "sweetalert2";
@@ -48,13 +49,13 @@ let OPTIONS = [
 let noticeTitle = "이야기를 들려주세요!";
 let noticeText = (
   <>
-    <div style={{ marginBottom: "15px" }}>
+    <div style={{ marginBottom: "15px", fontSize: "22px" }}>
       선생님들이 근무하셨던 <b>[학교의 평가]</b>
-      <div style={{ fontSize: "15px" }}>* 학교 평가는 익명으로 저장됨</div>
     </div>
     <div style={{ marginBottom: "15px" }}>
       학교, 지역에 대한<b> [질문]</b>들을 기다립니다☺️
     </div>
+    <div style={{ fontSize: "15px" }}>* 학교 평가는 익명으로 저장됨</div>
     <br />
     <div style={{ fontSize: "15px" }}>
       ** 앱 개선 및 불편사항은 kerbong@gmail.com으로 알려주세요!
@@ -96,6 +97,10 @@ const Maps = (props) => {
   const [showAddReview, setShowAddReview] = useState(false);
   const [nickName, setNickName] = useState("");
   const [showBoard, setShowBoard] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [nameLists, setNameLists] = useState([]);
+  const [index, setIndex] = useState(0);
 
   const { kakao } = window;
 
@@ -116,6 +121,46 @@ const Maps = (props) => {
       }
     });
   };
+
+  /** 등록된 글이 있는 모든 학교, 지역정보 받아와서 저장하는 함수, 처음 한번만 받아오기상태, 추후 100초 간격 업데이트?! */
+  const getNameLists = async () => {
+    // const listAreaRef = doc(dbService, "area", "0_listAll");
+    const listSchoolRef = doc(dbService, "boards", "0_listAll");
+
+    // const listAreaNames = await getDoc(listAreaRef);
+    const listSchoolNames = await getDoc(listSchoolRef);
+
+    let nameLists = [];
+    // nameLists.push(...listAreaNames.data().datas);
+    nameLists.push(...listSchoolNames.data().datas);
+
+    setNameLists(nameLists);
+  };
+
+  // 등록된 글이 있는 모든 학교, 지역정보 받아오기
+  useEffect(() => {
+    getNameLists();
+  }, []);
+
+  useEffect(() => {
+    if (nameLists?.length === 0) return;
+    const interval = setInterval(() => {
+      setIndex((prevIndex) => (prevIndex + 1) % nameLists.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [nameLists]);
+
+  //모바일인 경우 css 다르게 적용하기
+  useEffect(() => {
+    let is_mobile = /iPhone|iPad|iPod|Android/i.test(
+      window.navigator.userAgent
+    );
+    if (is_mobile) {
+      setIsMobile(true);
+    } else {
+      setIsMobile(false);
+    }
+  }, [window.navigator.userAgent]);
 
   //장소선택하면. 학교알리미에서 정보 받아오고 나눔 받기
   useEffect(() => {
@@ -461,8 +506,8 @@ const Maps = (props) => {
     let docName;
     if (!area) {
       addressName = placeInfo?.road_address_name
-        ? placeInfo.road_address_name.split(" ")
-        : placeInfo.address_name.split(" ");
+        ? placeInfo?.road_address_name?.split(" ")
+        : placeInfo?.address_name?.split(" ");
       docName = addressName[0] + "*" + addressName[1];
     } else {
       docName = area;
@@ -549,7 +594,8 @@ const Maps = (props) => {
       level = 3;
     }
 
-    var new_level = 0.003 * (level - 0.9);
+    var new_level = !isMobile ? 0.003 * (level - 0.9) : 0;
+
     map.panTo(new kakao.maps.LatLng(+place.y, +place.x - new_level));
   };
 
@@ -559,6 +605,8 @@ const Maps = (props) => {
     //한줄리뷰 부분 숨기기
     setShowReviewAll(false);
     setPlaceName(null);
+    setShowBoard(false);
+    setNowArea("");
     // 이미지랑 통통튀는 효과 없애기
     let nowImg = document.querySelector(`img[title='${placeName}']`);
     if (!nowImg) return;
@@ -571,7 +619,7 @@ const Maps = (props) => {
     return (
       <>
         <div className={classes["search-div"]}>
-          {searchFormHtml}
+          {!isMobile && searchFormHtml}
           <div className={classes["placeinfo"]} id={placeInfo.place_name}>
             {/* 이전에 검색한 학교 / 학교이름 / x 버튼 */}
             <div className={classes["flex-row-title"]}>
@@ -579,6 +627,7 @@ const Maps = (props) => {
               <div
                 onClick={() => beforePlaceInfo(placeInfo.place_name)}
                 title="이전 학교"
+                style={{ cursor: "pointer" }}
               >
                 <i
                   className="fa-solid fa-arrow-left fa-lg"
@@ -610,6 +659,7 @@ const Maps = (props) => {
               <div
                 onClick={() => removePlaceInfo(placeInfo.place_name)}
                 title="선택취소"
+                style={{ cursor: "pointer" }}
               >
                 <i
                   className="fa-solid fa-xmark fa-lg"
@@ -641,7 +691,7 @@ const Maps = (props) => {
     if (showWindow) {
       const timeoutId = setTimeout(() => {
         setShowWindow(false);
-      }, 2000);
+      }, 3000);
 
       return () => clearTimeout(timeoutId);
     }
@@ -651,7 +701,64 @@ const Maps = (props) => {
   const displayInfoMain = () => {
     return (
       <>
-        <div className={classes["search-div"]}>{searchFormHtml}</div>
+        {!isSearching ? (
+          <div className={classes["board-grid-pc"]}>
+            {/* 검색중이 아니면.. 전체 학교 목록, 전체 지역 글 목록을 순서대로 다 보여주기, // 검색아이콘 // 로그인 아이콘 */}
+
+            {/* 스포 마크 보여주기 */}
+            <img
+              src={whiteLogoPng}
+              alt="search-logo"
+              className={classes["logo-mobile"]}
+            />
+
+            {/* 전체 학교평가, 지역 평가글 목록 보여줄 부분 */}
+            <div className={classes["list-all"]}>
+              <span onClick={searchingSchoolHandler}>
+                🐿️ {nameLists[index]?.split("*")?.[0]}
+              </span>
+            </div>
+
+            {/* 검색돋보기 버튼 */}
+            <button
+              onClick={() => setIsSearching(true)}
+              className={classes["search-btn-mobile"]}
+            >
+              <i
+                className="fa-solid fa-magnifying-glass fa-xl"
+                style={{ color: "#a3a3a3" }}
+              ></i>
+            </button>
+            {/* 로그인 아이콘 */}
+            {logInBtn()}
+          </div>
+        ) : (
+          <div
+            className={classes["board-i-title"]}
+            style={{
+              backgroundColor: "#2e3e4b",
+              justifyContent: "space-between",
+              width: "100%",
+            }}
+          >
+            <button
+              onClick={() => {
+                setIsSearching(false);
+                setKeywordResults([]);
+                setKeyResultsPages(null);
+              }}
+              className={classes["backBtn"]}
+              style={{ zIndex: "3", marginLeft: "10px" }}
+              title="뒤로(지도보기)"
+            >
+              <i
+                className="fa-solid fa-xmark fa-lg"
+                style={{ color: "whitesmoke" }}
+              ></i>
+            </button>
+            <div className={classes["search-div"]}>{searchFormHtml}</div>
+          </div>
+        )}
       </>
     );
   };
@@ -833,10 +940,31 @@ const Maps = (props) => {
 
   // 학교 찾는 검색부분 html 코드
   const searchFormHtml = (
-    <>
+    <div
+      className={classes["search-form"]}
+      style={!isMobile ? { marginLeft: "-45px" } : {}}
+    >
+      {isMobile && (
+        <button
+          onClick={() => {
+            setIsSearching(false);
+            setKeywordResults([]);
+            setKeyResultsPages(null);
+          }}
+          className={classes["backBtn"]}
+          title="뒤로(지도보기)"
+        >
+          <i
+            className="fa-solid fa-xmark fa-lg"
+            style={{ color: "whitesmoke" }}
+          ></i>
+        </button>
+      )}
       <form onSubmit={searchingSchool} className={classes["search-form"]}>
         {/* 로고부분 */}
-        <img src={logoPng} alt="search-logo" className={classes["logo"]} />
+        {!isMobile && (
+          <img src={logoPng} alt="search-logo" className={classes["logo"]} />
+        )}
 
         {/* 검색 input태그 */}
         <input
@@ -846,17 +974,23 @@ const Maps = (props) => {
           onChange={(e) => setSchoolInputValue(e.target.value)}
           size="16"
           placeholder={"학교이름 검색"}
+          style={
+            !isMobile ? {} : { padding: "10px 35px 10px 20px", width: "65vw" }
+          }
         />
-
-        {/* 검색돋보기 버튼 */}
-        <button type="submit" className={classes["search-btn"]}>
-          <i
-            className="fa-solid fa-magnifying-glass fa-xl"
-            style={{ color: "#a3a3a3" }}
-          ></i>
-        </button>
       </form>
-    </>
+      {/* 검색돋보기 버튼 */}
+      <button
+        onClick={searchingSchool}
+        className={classes["search-btn-mobile"]}
+        title={"검색하기"}
+      >
+        <i
+          className="fa-solid fa-magnifying-glass fa-xl"
+          style={{ color: "#a3a3a3" }}
+        ></i>
+      </button>
+    </div>
   );
 
   //초등 중등 고등 학교급 선택하는 부분
@@ -883,6 +1017,7 @@ const Maps = (props) => {
   const saveRecentDatas = async () => {
     let new_data;
     let recentRef;
+    let listAllRef;
 
     if (showBoard) {
       new_data = {
@@ -890,6 +1025,7 @@ const Maps = (props) => {
         date: dayjs().format("YYYY-MM-DD"),
       };
       recentRef = doc(dbService, "boards", "0_recentDatas");
+      listAllRef = doc(dbService, "boards", "0_listAll");
     } else {
       let docN = placeInfo?.road_address_name
         ? placeInfo.road_address_name.split(" ")
@@ -900,6 +1036,7 @@ const Maps = (props) => {
         date: dayjs().format("YYYY-MM-DD"),
       };
       recentRef = doc(dbService, "area", "0_recentDatas");
+      listAllRef = doc(dbService, "area", "0_listAll");
     }
 
     let new_recentDatas = showBoard ? recentDatas : recentAreaDatas;
@@ -926,6 +1063,28 @@ const Maps = (props) => {
     }
 
     await setDoc(recentRef, { datas: new_recentDatas });
+
+    // 학교이름 혹은 지역이름을 listAll 목록에 저장하기
+
+    const listAllData = await getDoc(listAllRef);
+    let new_listAllData = [...listAllData.data().datas];
+
+    let new_name;
+
+    if (showBoard) {
+      new_name = new_data.road_address_name
+        ? new_data.place_name + "*" + new_data.road_address_name
+        : new_data.place_name + "*" + new_data.address_name;
+    } else {
+      new_name = new_data.address;
+    }
+
+    //현재 목록에 없으면 저장하기
+    if (new_listAllData?.filter((data) => data === new_name)?.length === 0) {
+      new_listAllData.push(new_name);
+
+      await setDoc(listAllRef, { datas: new_listAllData });
+    }
   };
 
   /** 좋아요 하트 누르면 변경되는 함수 */
@@ -1200,67 +1359,85 @@ const Maps = (props) => {
   const displayPlaceDesc = () => {
     return (
       <div
-        className={classes["placeinfo_board"]}
+        className={
+          !isMobile
+            ? classes["placeinfo_board"]
+            : classes["placeinfo_board_mobile"]
+        }
         onMouseDown={kakao.maps.event.preventMap}
         onTouchStart={kakao.maps.event.preventMap}
       >
         {/* QnA */}
         <div className={classes["board-div"]}>
-          <h4 className={classes["board-title"]}>
-            <i
-              className="fa-solid fa-school-flag fa-sm"
-              style={{ color: "#3f4e69" }}
-            ></i>{" "}
-            {placeInfo?.place_name} | 게시판
-            {boards?.length > 0 && <span>({boards?.length})</span>}
+          <h4 className={classes["board-title"]} style={{ margin: "0" }}>
+            <div
+              onClick={() => removePlaceInfo(placeInfo.place_name)}
+              style={{ cursor: "pointer" }}
+              title="선택취소"
+            >
+              <i className="fa-solid fa-xmark fa-lg"></i>
+            </div>
+            <div className={classes["board-i-title"]}>
+              <i
+                className="fa-solid fa-school-flag fa-sm"
+                style={{ color: "#3f4e69", marginRight: "10px" }}
+              ></i>{" "}
+              {placeInfo?.place_name} | 게시판
+              {boards?.length > 0 && <span>({boards?.length})</span>}
+            </div>
+
+            {/* 게시판 내용 추가 버튼 */}
+            <button
+              onClick={() => {
+                //로그인 되어 있지 않으면.. 로그인 화면 보여주기
+                if (!checkLogin()) return;
+                setShowAddBoard(true);
+              }}
+              className={classes["addBtn"]}
+              title="글쓰기"
+            >
+              {" "}
+              +
+            </button>
           </h4>
-          {/* 게시판 내용 추가 버튼 */}
-          <button
-            onClick={() => {
-              //로그인 되어 있지 않으면.. 로그인 화면 보여주기
-              if (!checkLogin()) return;
-              setShowAddBoard(true);
-            }}
-            className={classes["addBtn"]}
-            title="글쓰기"
-          >
-            {" "}
-            +
-          </button>
+
           {/* 학교 선택 중 = 지역 글보기 버튼 */}
-          <button
-            onClick={() => {
-              setShowBoard(false);
-              getAreaData();
-              getRecentDatas();
-              setNowArea(
-                placeInfo.road_address_name
-                  ? placeInfo.road_address_name.split(" ")[0] +
-                      " " +
-                      placeInfo.road_address_name.split(" ")[1]
-                  : placeInfo.address_name.split(" ")[0] +
-                      " " +
-                      placeInfo.address_name.split(" ")[1]
-              );
-            }}
-            className={classes["login-btn"]}
-          >
-            {" "}
-            {placeInfo.road_address_name
-              ? placeInfo.road_address_name.split(" ")[0] +
-                " " +
-                placeInfo.road_address_name.split(" ")[1]
-              : placeInfo.address_name.split(" ")[0] +
-                " " +
-                placeInfo.address_name.split(" ")[1]}{" "}
-            지역 글보기
-          </button>
+          <div className={classes["rev-ul-nouser"]}>
+            <button
+              onClick={() => {
+                setShowBoard(false);
+                getAreaData();
+                // getRecentDatas();
+                setNowArea(
+                  placeInfo.road_address_name
+                    ? placeInfo.road_address_name.split(" ")[0] +
+                        " " +
+                        placeInfo.road_address_name.split(" ")[1]
+                    : placeInfo.address_name.split(" ")[0] +
+                        " " +
+                        placeInfo.address_name.split(" ")[1]
+                );
+              }}
+              className={classes["login-btn"]}
+            >
+              {" "}
+              {placeInfo.road_address_name
+                ? placeInfo.road_address_name.split(" ")[0] +
+                  " " +
+                  placeInfo.road_address_name.split(" ")[1]
+                : placeInfo.address_name.split(" ")[0] +
+                  " " +
+                  placeInfo.address_name.split(" ")[1]}{" "}
+              지역 글보기
+            </button>
+          </div>
 
           <ul style={{ padding: "5px 0" }}>
             {/* 게시글 없으면... */}
             {user && boards?.length === 0 && (
               <p style={{ textAlign: "center" }}>
-                아직 글이 없어요! 선생님의 첫 글을 기다립니다☺️
+                아직 글이 없어요!
+                <br /> 선생님의 첫 글을 기다립니다☺️
               </p>
             )}
 
@@ -1615,7 +1792,7 @@ const Maps = (props) => {
           <hr className={classes["hr"]} />
           <div className={classes["recent-title"]}>
             <i
-              className="fa-solid fa-location-crosshairs"
+              className="fa-solid fa-map-location-dot fa-sm"
               style={{ color: "#3f4e69" }}
             ></i>
             &nbsp; 최신 리뷰 지역{" "}
@@ -1708,25 +1885,25 @@ const Maps = (props) => {
         <hr className={classes["hr"]} />
         {/* 리뷰 보기.. */}
         <div>
-          <button
-            onClick={addReviewText}
-            className={classes["addRevBtn"]}
-            title="리뷰쓰기"
-          >
-            {" "}
-            +
-          </button>
-
           {/* 한줄 리뷰 */}
-          <div
-            className={classes["recent-title"]}
-            style={{ marginTop: "-40px" }}
-          >
-            <i
-              className="fa-regular fa-comment-dots fa-md"
-              style={{ color: "#3f4e69" }}
-            ></i>
-            &nbsp; 학교 한줄평
+          <div className={classes["board-title"]}>
+            <div style={{ width: "45px" }}></div>
+            <div>
+              <i
+                className="fa-regular fa-comment-dots fa-md"
+                style={{ color: "#3f4e69" }}
+              ></i>
+              &nbsp; 학교 한줄평
+            </div>
+
+            <button
+              onClick={addReviewText}
+              className={classes["addRevBtn"]}
+              title="리뷰쓰기"
+            >
+              {" "}
+              +
+            </button>
           </div>
           {user && (
             <ul className={classes["rev-ul"]}>
@@ -1779,47 +1956,60 @@ const Maps = (props) => {
         onTouchStart={kakao.maps.event.preventMap}
       >
         <div className={classes["board-div"]}>
-          <h4 className={classes["board-title"]}>
-            <i
-              className="fa-solid fa-location-crosshairs"
-              style={{ color: "#3f4e69" }}
-            ></i>{" "}
-            {nowArea} | 게시판
-            {areaDatas?.length > 0 && <span>({areaDatas?.length})</span>}
-          </h4>
-          {/* 게시판 내용 추가 버튼 */}
-          <button
-            onClick={() => {
-              //로그인 되어 있지 않으면.. 로그인 화면 보여주기
-              if (!checkLogin()) return;
-              setShowAddBoard(true);
-            }}
-            className={classes["addBtn"]}
-            title="글쓰기"
-          >
-            {" "}
-            +
-          </button>
-          {/* 이전 학교가 있을 때?? 이전 학교 글보기 버튼 */}
-          {placeInfo && (
+          <h4 className={classes["board-title"]} style={{ margin: "0" }}>
+            <div
+              onClick={() => removePlaceInfo(placeInfo.place_name)}
+              style={{ cursor: "pointer" }}
+              title="선택취소"
+            >
+              <i className="fa-solid fa-xmark fa-lg"></i>
+            </div>
+            <div className={classes["board-i-title"]}>
+              <i
+                className="fa-solid fa-map-location-dot fa-xl"
+                style={{ color: "#3f4e69", marginRight: "10px" }}
+              ></i>{" "}
+              {nowArea} | 게시판
+              {areaDatas?.length > 0 && <span>({areaDatas?.length})</span>}
+            </div>
+            {/* 게시판 내용 추가 버튼 */}
             <button
               onClick={() => {
-                setAreaDatas([]);
-                setShowBoard(true);
-                setNowArea("");
+                //로그인 되어 있지 않으면.. 로그인 화면 보여주기
+                if (!checkLogin()) return;
+                setShowAddBoard(true);
               }}
-              className={classes["login-btn"]}
+              className={classes["addBtn"]}
+              title="글쓰기"
             >
               {" "}
-              ({placeInfo?.place_name}) 글보기
+              +
             </button>
+          </h4>
+
+          {/* 이전 학교가 있을 때?? 이전 학교 글보기 버튼 */}
+          {placeInfo && (
+            <div className={classes["rev-ul-nouser"]}>
+              <button
+                onClick={() => {
+                  setAreaDatas([]);
+                  setShowBoard(true);
+                  setNowArea("");
+                }}
+                className={classes["login-btn"]}
+              >
+                {" "}
+                ({placeInfo?.place_name}) 글보기
+              </button>
+            </div>
           )}
 
           <ul style={{ padding: "5px 0" }}>
             {/* 게시글 없으면... */}
             {user && areaDatas?.length === 0 && (
               <p style={{ textAlign: "center" }}>
-                아직 글이 없어요! 선생님의 첫 글을 기다립니다☺️
+                아직 글이 없어요!
+                <br /> 선생님의 첫 글을 기다립니다☺️
               </p>
             )}
 
@@ -1997,7 +2187,19 @@ const Maps = (props) => {
     setShowAddReview(false);
   };
 
-  // console.log(placeInfo);
+  /** 현재 학교 이름들만 받아오므로.. 무조건 주소로 찾고, 이름이 학교명과 일치하는 거 찾아서 학교 설정하기 */
+  const searchingSchoolHandler = () => {
+    let new_placeAddress = nameLists[index]?.split("*")?.[1];
+
+    ps.keywordSearch(new_placeAddress, (res, stat) => {
+      let new_pl = res.filter(
+        (res_pl) => res_pl?.place_name === nameLists[index]?.split("*")?.[0]
+      );
+      if (new_pl?.length > 0) {
+        keywordSchoolClick(new_pl?.[0]);
+      }
+    });
+  };
 
   /** 신고하면 email 자동으로 보내주는 함수 */
   const reportEmail = async (data, doc) => {
@@ -2030,11 +2232,79 @@ const Maps = (props) => {
     );
   };
 
+  const logInBtn = () => {
+    return (
+      <button
+        id="userLogin"
+        className={
+          !isMobile ? classes["user-login"] : classes["user-login-mobile"]
+        }
+        onClick={userHandler}
+        title={user ? "로그아웃" : "로그인"}
+      >
+        {user ? (
+          <i
+            className="fa-solid fa-circle-user fa-xl"
+            style={!isMobile ? { color: "#243147" } : { color: "white" }}
+          ></i>
+        ) : (
+          <i
+            className="fa-regular fa-circle-user fa-xl"
+            style={!isMobile ? { color: "#9e9e9e" } : { color: "lightgray" }}
+          ></i>
+        )}
+      </button>
+    );
+  };
+
+  /** 현재 위치로 이동하는 함수 */
+  const gpsHandler = () => {
+    function locationLoadSuccess(pos) {
+      // 현재 위치 받아오기
+      var currentPos = new kakao.maps.LatLng(
+        pos.coords.latitude,
+        pos.coords.longitude
+      );
+
+      // 지도 이동(기존 위치와 가깝다면 부드럽게 이동)
+      map.panTo(currentPos);
+    }
+
+    function locationLoadError(pos) {
+      alert("위치 정보를 가져오는데 실패했습니다.");
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      locationLoadSuccess,
+      locationLoadError
+    );
+  };
+
+  /** 현재 위치 gps로 가져와서 이동하는 버튼 */
+  const gpsBtn = () => {
+    return (
+      <button
+        id="userLogin"
+        className={isMobile ? classes["gps-btn-mobile"] : classes["gps-btn"]}
+        onClick={gpsHandler}
+        title={"내 위치로 이동하기"}
+      >
+        <i
+          className="fa-solid fa-location-crosshairs fa-xl"
+          style={{ color: "#2e3e4b" }}
+        ></i>
+      </button>
+    );
+  };
+
   return (
     <>
       {/* //공지사항 */}
       {showNotice && (
-        <Modal onClose={() => setShowNotice(false)} addStyle={"notice"}>
+        <Modal
+          onClose={() => setShowNotice(false)}
+          addStyle={!isMobile ? "notice" : "notice_mobile"}
+        >
           {/* 제목 */}
           <div className={classes["notice-title"]}>{noticeTitle}</div>
           {/* gif */}
@@ -2047,127 +2317,572 @@ const Maps = (props) => {
       )}
 
       <div id="map" style={{ width: "100%", height: "100vh" }}></div>
+
       {/* 초등 중등 고등 카테고리 */}
       <ul id="category" className={classes["category"]}>
-        {selectCategory}
+        {!isMobile && selectCategory}
       </ul>
+
       {/* 로그인버튼 부분 */}
-      <button
-        id="userLogin"
-        className={classes["user-login"]}
-        onClick={userHandler}
-        title={user ? "로그아웃" : "로그인"}
-      >
-        {user ? (
-          <i
-            className="fa-solid fa-circle-user fa-xl"
-            style={{ color: "#243147" }}
-          ></i>
-        ) : (
-          <i
-            className="fa-regular fa-circle-user fa-xl"
-            style={{ color: "#9e9e9e" }}
-          ></i>
-        )}
-      </button>
+      {!isMobile && logInBtn()}
 
-      {/* 학교 정보가 보일 div  */}
-      <div
-        className={classes["placeinfo_wrap"]}
-        onMouseDown={kakao.maps.event.preventMap}
-        onTouchStart={kakao.maps.event.preventMap}
-        // dangerouslySetInnerHTML={{ __html: placeInfo }}
-      >
-        {/* 학교선택된 상태에서 보이는 화면구성 */}
-        {placeInfo && (
-          <>
-            {/* 학교 검색창 + 요약정보 */}
-            {displayPlaceInfo()}
+      {/* 내 위치로 바로 이동하는 부분 */}
+      {gpsBtn()}
 
-            <div ref={revSchoolRef} className={classes["plinfo-white-div"]}>
-              {/* 학교펑점부분 */}
-              {displayReviews()}
-              {/* 최근 글,댓글이 추가된 학교목록 */}
+      {/* 학교 정보가 보일 div - pc 버전인 경우 화면 왼쪽 정보창 */}
+      {!isMobile && (
+        <div
+          className={classes["placeinfo_wrap"]}
+          onMouseDown={kakao.maps.event.preventMap}
+          onTouchStart={kakao.maps.event.preventMap}
+          // dangerouslySetInnerHTML={{ __html: placeInfo }}
+        >
+          {/* 학교선택된 상태에서 보이는 화면구성 */}
+          {placeInfo && (
+            <>
+              {/* 학교 검색창 + 요약정보 */}
+              {displayPlaceInfo()}
+
+              <div ref={revSchoolRef} className={classes["plinfo-white-div"]}>
+                {/* 학교펑점부분 */}
+                {displayReviews()}
+                {/* 최근 글,댓글이 추가된 학교목록 */}
+                {displayRecent()}
+                {displayRecentArea()}
+                <hr className={classes["hr"]} />
+              </div>
+            </>
+          )}
+
+          {!placeInfo && displayInfoMain()}
+
+          {/* 최근 글이 올라온 학교 정보 / 검색상태가 아닐때 */}
+          {!placeInfo && keywordResults?.length === 0 && (
+            <>
               {displayRecent()}
               {displayRecentArea()}
-              <hr className={classes["hr"]} />
+            </>
+          )}
 
-              {/* 해당 지역의 글 목록? 더보기 하면 새로운 창 띄워서 보여주기 */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginBottom: "40px",
-                }}
-              >
-                <button
-                  onClick={() => {
-                    setShowBoard(false);
-                    getAreaData();
-                    getRecentDatas();
-                    setNowArea(
-                      placeInfo.road_address_name
-                        ? placeInfo.road_address_name.split(" ")[0] +
-                            " " +
-                            placeInfo.road_address_name.split(" ")[1]
-                        : placeInfo.address_name.split(" ")[0] +
-                            " " +
-                            placeInfo.address_name.split(" ")[1]
-                    );
-                  }}
-                  className={classes["login-btn"]}
-                >
-                  {" "}
-                  {placeInfo.road_address_name
-                    ? placeInfo.road_address_name.split(" ")[0] +
-                      " " +
-                      placeInfo.road_address_name.split(" ")[1]
-                    : placeInfo.address_name.split(" ")[0] +
-                      " " +
-                      placeInfo.address_name.split(" ")[1]}{" "}
-                  지역 글보기
-                </button>
+          {/* 검색결과 보여주는 곳 */}
+          {!placeInfo &&
+            keywordResults?.length > 0 &&
+            getListItem(keywordResults)}
+          {/* 페이지 보여주는 곳 */}
+          {!placeInfo && keywordResults?.length > 0 && keyPageHtml()}
+          {/* 이용약관부분 */}
+          <div
+            onClick={() => setShowAgency(true)}
+            className={classes["map-agencyShow"]}
+          >
+            이용약관 및 개인정보처리방침 보기
+          </div>
+        </div>
+      )}
+
+      {/* 모바일 버전에서 학교 미선택 시 학교 검색창 */}
+      {isMobile && !placeInfo && (
+        <div
+          className={classes["search_mobile"]}
+          onMouseDown={kakao.maps.event.preventMap}
+          onTouchStart={kakao.maps.event.preventMap}
+        >
+          {!isSearching ? (
+            <div className={classes["board-grid"]}>
+              {/* 검색중이 아니면.. 전체 학교 목록, 전체 지역 글 목록을 순서대로 다 보여주기, // 검색아이콘 // 로그인 아이콘 */}
+
+              {/* 스포 마크 보여주기 */}
+              <img
+                src={whiteLogoPng}
+                alt="search-logo"
+                className={classes["logo-mobile"]}
+              />
+
+              {/* 전체 학교평가, 지역 평가글 목록 보여줄 부분 */}
+              <div className={classes["list-all"]}>
+                <span onClick={searchingSchoolHandler}>
+                  🐿️ {nameLists[index]?.split("*")?.[0]}
+                </span>
               </div>
+
+              {/* 검색돋보기 버튼 */}
+              <button
+                onClick={() => setIsSearching(true)}
+                className={classes["search-btn-mobile"]}
+                title={"검색하기"}
+              >
+                <i
+                  className="fa-solid fa-magnifying-glass fa-xl"
+                  style={{ color: "#a3a3a3" }}
+                ></i>
+              </button>
+              {/* 로그인 아이콘 */}
+              {logInBtn()}
             </div>
-          </>
-        )}
+          ) : (
+            <div
+              className={classes["board-i-title"]}
+              style={{
+                backgroundColor: "#2e3e4b",
+                justifyContent: "space-between",
+                width: "100vw",
+              }}
+            >
+              <div className={classes["search-div"]}>{searchFormHtml}</div>
+            </div>
+          )}
 
-        {!placeInfo && displayInfoMain()}
+          {/*  현재 위치 gps로... 이동 */}
+          {!isSearching && gpsBtn()}
 
-        {/* 최근 글이 올라온 학교 정보 / 검색상태가 아닐때 */}
-        {!placeInfo && keywordResults?.length === 0 && (
-          <>
+          {/* 검색결과 보여주는 곳 */}
+          {!placeInfo &&
+            keywordResults?.length > 0 &&
+            getListItem(keywordResults)}
+          {/* 페이지 보여주는 곳 */}
+          {!placeInfo && keywordResults?.length > 0 && keyPageHtml()}
+        </div>
+      )}
+
+      {/* 모바일 버전에서 학교 선택한 경우 화면 왼쪽 정보창 */}
+      {isMobile && placeInfo && (
+        <div
+          className={classes["placeinfo_wrap_mobile"]}
+          onMouseDown={kakao.maps.event.preventMap}
+          onTouchStart={kakao.maps.event.preventMap}
+        >
+          {/* 학교 검색창 + 요약정보 */}
+          {displayPlaceInfo()}
+
+          <div
+            ref={revSchoolRef}
+            className={classes["plinfo-white-div"]}
+            style={{ height: "auto" }}
+          >
+            {/* 학교펑점부분 */}
+            {displayReviews()}
+            {/* 최근 글,댓글이 추가된 학교목록 */}
             {displayRecent()}
             {displayRecentArea()}
-          </>
-        )}
+            <hr className={classes["hr"]} />
+          </div>
 
-        {/* 검색결과 보여주는 곳 */}
-        {!placeInfo &&
-          keywordResults?.length > 0 &&
-          getListItem(keywordResults)}
-        {/* 페이지 보여주는 곳 */}
-        {!placeInfo && keywordResults?.length > 0 && keyPageHtml()}
-        {/* 이용약관부분 */}
-        <div
-          onClick={() => setShowAgency(true)}
-          className={classes["map-agencyShow"]}
-        >
-          이용약관 및 개인정보처리방침 보기
+          {/* 게시판부분 */}
+          <div className={classes["board-div"]}>
+            <h4 className={classes["board-title"]} style={{ margin: "0" }}>
+              <div style={{ width: "20px" }}></div>
+              <div className={classes["board-i-title"]}>
+                <i
+                  className="fa-solid fa-school-flag fa-sm"
+                  style={{ color: "#3f4e69", marginRight: "10px" }}
+                ></i>{" "}
+                {!nowArea ? placeInfo?.place_name : nowArea} | 게시판
+                {!nowArea && boards?.length > 0 && (
+                  <span>({boards?.length})</span>
+                )}
+                {nowArea && areaDatas?.length > 0 && (
+                  <span>({areaDatas?.length})</span>
+                )}
+              </div>
+
+              {/* 게시판 내용 추가 버튼 */}
+              <button
+                onClick={() => {
+                  //로그인 되어 있지 않으면.. 로그인 화면 보여주기
+                  if (!checkLogin()) return;
+                  setShowAddBoard(true);
+                }}
+                className={classes["addBtn"]}
+                title="글쓰기"
+              >
+                {" "}
+                +
+              </button>
+            </h4>
+
+            {/* 학교 선택 중 = 지역 글보기 버튼 */}
+            {!nowArea && (
+              <>
+                <div className={classes["rev-ul-nouser"]}>
+                  <button
+                    onClick={() => {
+                      setShowBoard(false);
+                      getAreaData();
+                      // getRecentDatas();
+                      setNowArea(
+                        placeInfo.road_address_name
+                          ? placeInfo?.road_address_name?.split(" ")[0] +
+                              " " +
+                              placeInfo?.road_address_name?.split(" ")[1]
+                          : placeInfo?.address_name?.split(" ")[0] +
+                              " " +
+                              placeInfo?.address_name?.split(" ")[1]
+                      );
+                    }}
+                    className={classes["login-btn"]}
+                  >
+                    {" "}
+                    {placeInfo.road_address_name
+                      ? placeInfo.road_address_name.split(" ")[0] +
+                        " " +
+                        placeInfo.road_address_name.split(" ")[1]
+                      : placeInfo.address_name.split(" ")[0] +
+                        " " +
+                        placeInfo.address_name.split(" ")[1]}{" "}
+                    지역 글보기
+                  </button>
+                </div>
+
+                <ul style={{ padding: "5px 0" }}>
+                  {/* 게시글 없으면... */}
+                  {user && boards?.length === 0 && (
+                    <p style={{ textAlign: "center" }}>
+                      아직 글이 없어요!
+                      <br /> 선생님의 첫 글을 기다립니다☺️
+                    </p>
+                  )}
+
+                  {boards?.map((bd, index) => {
+                    //로그인하지 않은 상태면.. 최대 3개만 보여주고,
+                    if (!user && index > 2) return null;
+
+                    return (
+                      <li key={index} className={classes["board-li"]}>
+                        <div className={classes["boardLi-title"]}>
+                          {bd.title}
+                        </div>
+                        <div className={classes["boardLi-text"]}>
+                          {truncateText(bd.text, 60)}
+                        </div>
+
+                        {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                        <div className={classes["boardLi-bottom"]}>
+                          <div style={{ display: "flex" }}>
+                            {/* 닉네임 */}
+                            <div>{bd.nickName}</div>
+
+                            {/* 며칠전 */}
+                            <div style={{ marginLeft: "15px" }}>
+                              {dayjs(bd.id).fromNow()}
+                            </div>
+                            {/* 신고하기 */}
+                            <div
+                              style={{ marginLeft: "15px", cursor: "pointer" }}
+                              onClick={() => reportCheck(bd)}
+                              title="신고하기"
+                            >
+                              <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                            </div>
+                          </div>
+                          {/* 좋아요 */}
+                          <div
+                            style={{ marginLeft: "15px", cursor: "pointer" }}
+                            onClick={() => likeHandler(bd)}
+                          >
+                            {bd.like.includes(user?.uid) ? (
+                              <i
+                                className="fa-solid fa-heart fa-sm"
+                                style={{ color: "#ff1d1d96" }}
+                              ></i>
+                            ) : (
+                              <i
+                                className="fa-regular fa-heart fa-sm"
+                                style={{ color: "#2e3e4b" }}
+                              ></i>
+                            )}{" "}
+                            {bd.like.length}
+                          </div>
+                        </div>
+                        {/* 게시글의 댓글 보여주기 */}
+                        {bd?.reply?.length > 0 && (
+                          <>
+                            <hr />
+                            {bd?.reply?.map((rep, ind) => (
+                              <div key={ind} className={classes["reply-div"]}>
+                                <i
+                                  className="fa-solid fa-reply fa-rotate-180"
+                                  style={{
+                                    color: "#3f4f6994",
+                                    marginRight: "10px",
+                                    marginTop: "5px",
+                                  }}
+                                ></i>
+                                <div style={{ width: "100%" }}>
+                                  <div>{truncateText(rep.text, 60)}</div>
+
+                                  {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                                  <div className={classes["boardLi-bottom"]}>
+                                    <div style={{ display: "flex" }}>
+                                      {/* 닉네임 */}
+                                      <div>{rep.nickName}</div>
+
+                                      {/* 며칠전 */}
+                                      <div style={{ marginLeft: "15px" }}>
+                                        {dayjs(rep.id).fromNow()}
+                                      </div>
+                                      {/* 신고하기 */}
+                                      <div
+                                        style={{
+                                          marginLeft: "15px",
+                                          cursor: "pointer",
+                                        }}
+                                        onClick={() => reportCheck(bd, rep)}
+                                        title="신고하기"
+                                      >
+                                        <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                                      </div>
+                                    </div>
+                                    {/* 좋아요 */}
+                                    <div
+                                      style={{
+                                        marginLeft: "15px",
+                                        cursor: "pointer",
+                                      }}
+                                      onClick={() => likeHandler(bd, rep)}
+                                    >
+                                      {rep.like.includes(user?.uid) ? (
+                                        <i
+                                          className="fa-solid fa-heart fa-sm"
+                                          style={{ color: "#ff1d1d96" }}
+                                        ></i>
+                                      ) : (
+                                        <i
+                                          className="fa-regular fa-heart fa-sm"
+                                          style={{ color: "#2e3e4b" }}
+                                        ></i>
+                                      )}{" "}
+                                      {rep.like.length}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
+                        {/* 댓글다는 부분 */}
+                        <div className={classes["boardLi-bottom"]}>
+                          <FlexibleInput
+                            className={"board-reply"}
+                            placeholder={
+                              nickName
+                                ? `${nickName}님 댓글을 남겨주세요.`
+                                : "먼저 로그인 해주세요."
+                            }
+                            submitHandler={(v) => replyHandler(v, bd)}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+
+                  {/* 로그인하지 않은 상태면.. 로그인 버튼 보여주기 */}
+                  {!user && (
+                    <button
+                      className={classes["login-btn"]}
+                      style={{ width: "390px" }}
+                      onClick={() => setShowLogin(true)}
+                    >
+                      로그인하고 게시글 보기
+                    </button>
+                  )}
+                </ul>
+              </>
+            )}
+
+            {/* 지역 선택 중 = 학교 글보기 버튼 */}
+            {nowArea && (
+              <>
+                {/* 이전 학교가 있을 때?? 이전 학교 글보기 버튼 */}
+                {placeInfo && (
+                  <div className={classes["rev-ul-nouser"]}>
+                    <button
+                      onClick={() => {
+                        setAreaDatas([]);
+                        setShowBoard(true);
+                        setNowArea("");
+                      }}
+                      className={classes["login-btn"]}
+                    >
+                      {" "}
+                      ({placeInfo?.place_name}) 글보기
+                    </button>
+                  </div>
+                )}
+
+                <ul style={{ padding: "5px 0" }}>
+                  {/* 게시글 없으면... */}
+                  {user && areaDatas?.length === 0 && (
+                    <p style={{ textAlign: "center" }}>
+                      아직 글이 없어요!
+                      <br /> 선생님의 첫 글을 기다립니다☺️
+                    </p>
+                  )}
+
+                  {areaDatas?.map((area, index) => {
+                    //로그인하지 않은 상태면.. 최대 3개만 보여주고,
+                    if (!user && index > 2) return null;
+
+                    return (
+                      <li key={index} className={classes["board-li"]}>
+                        <div className={classes["boardLi-title"]}>
+                          {area.title}
+                        </div>
+                        <div className={classes["boardLi-text"]}>
+                          {truncateText(area.text, 60)}
+                        </div>
+
+                        {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                        <div className={classes["boardLi-bottom"]}>
+                          <div style={{ display: "flex" }}>
+                            {/* 닉네임 */}
+                            <div>{area.nickName}</div>
+
+                            {/* 며칠전 */}
+                            <div style={{ marginLeft: "15px" }}>
+                              {dayjs(area.id).fromNow()}
+                            </div>
+                            {/* 신고하기 */}
+                            <div
+                              style={{ marginLeft: "15px", cursor: "pointer" }}
+                              onClick={() => reportCheck(area)}
+                              title="신고하기"
+                            >
+                              <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                            </div>
+                          </div>
+                          {/* 좋아요 */}
+                          <div
+                            style={{ marginLeft: "15px", cursor: "pointer" }}
+                            onClick={() => likeHandler(area)}
+                          >
+                            {area.like.includes(user?.uid) ? (
+                              <i
+                                className="fa-solid fa-heart fa-sm"
+                                style={{ color: "#ff1d1d96" }}
+                              ></i>
+                            ) : (
+                              <i
+                                className="fa-regular fa-heart fa-sm"
+                                style={{ color: "#2e3e4b" }}
+                              ></i>
+                            )}{" "}
+                            {area.like.length}
+                          </div>
+                        </div>
+                        {/* 게시글의 댓글 보여주기 */}
+                        {area?.reply?.length > 0 && (
+                          <>
+                            <hr />
+                            {area?.reply?.map((rep, ind) => (
+                              <div key={ind} className={classes["reply-div"]}>
+                                <i
+                                  className="fa-solid fa-reply fa-rotate-180"
+                                  style={{
+                                    color: "#3f4f6994",
+                                    marginRight: "10px",
+                                    marginTop: "5px",
+                                  }}
+                                ></i>
+                                <div style={{ width: "100%" }}>
+                                  <div>{truncateText(rep.text, 60)}</div>
+
+                                  {/* 닉네임 며칠전 신고하기/ 좋아요    */}
+                                  <div className={classes["boardLi-bottom"]}>
+                                    <div style={{ display: "flex" }}>
+                                      {/* 닉네임 */}
+                                      <div>{rep.nickName}</div>
+
+                                      {/* 며칠전 */}
+                                      <div style={{ marginLeft: "15px" }}>
+                                        {dayjs(rep.id).fromNow()}
+                                      </div>
+                                      {/* 신고하기 */}
+                                      <div
+                                        style={{
+                                          marginLeft: "15px",
+                                          cursor: "pointer",
+                                        }}
+                                        onClick={() => reportCheck(area, rep)}
+                                        title="신고하기"
+                                      >
+                                        <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                                      </div>
+                                    </div>
+                                    {/* 좋아요 */}
+                                    <div
+                                      style={{
+                                        marginLeft: "15px",
+                                        cursor: "pointer",
+                                      }}
+                                      onClick={() => likeHandler(area, rep)}
+                                    >
+                                      {rep.like.includes(user?.uid) ? (
+                                        <i
+                                          className="fa-solid fa-heart fa-sm"
+                                          style={{ color: "#ff1d1d96" }}
+                                        ></i>
+                                      ) : (
+                                        <i
+                                          className="fa-regular fa-heart fa-sm"
+                                          style={{ color: "#2e3e4b" }}
+                                        ></i>
+                                      )}{" "}
+                                      {rep.like.length}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
+                        {/* 댓글다는 부분 */}
+                        <div className={classes["boardLi-bottom"]}>
+                          <FlexibleInput
+                            className={"board-reply"}
+                            placeholder={
+                              nickName
+                                ? `${nickName}님 댓글을 남겨주세요.`
+                                : "먼저 로그인 해주세요."
+                            }
+                            submitHandler={(v) => replyHandler(v, area)}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+
+                  {/* 로그인하지 않은 상태면.. 로그인 버튼 보여주기 */}
+                  {!user && (
+                    <button
+                      className={classes["login-btn"]}
+                      style={{ width: "390px" }}
+                      onClick={() => setShowLogin(true)}
+                    >
+                      로그인하고 게시글 보기
+                    </button>
+                  )}
+                </ul>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {placeInfo && showBoard && (
+      {!isMobile && placeInfo && showBoard && (
         <>
           {/* 학교선택하면.. 게시판 (해당 학교 혹은 해당 지역) 보여줄 부분 */}
           {displayPlaceDesc()}
         </>
       )}
-      {nowArea && !showBoard && <>{displayArea()}</>}
+      {!isMobile && nowArea && !showBoard && <>{displayArea()}</>}
 
       {/* 학교 정보가 너무 많을 경우, 축소 권장하는 modal */}
       {showWindow && (
-        <div className={classes["window"]}>
+        <div
+          className={!isMobile ? classes["window"] : classes["window-mobile"]}
+        >
           지도 안에 학교가 너무 많네요!
           <br />
           정확한 정보를 위해 지도를 확대해주세요!
@@ -2182,18 +2897,25 @@ const Maps = (props) => {
 
       {/* 닉네임도 있고 게시판에 글 추가하는 modal */}
       {showAddBoard && nickName !== "" && (
-        <Modal onClose={() => setShowAddBoard(false)} addStyle={"addBoard"}>
+        <Modal
+          onClose={() => setShowAddBoard(false)}
+          addStyle={!isMobile ? "addBoard" : "basic_mobile"}
+        >
           <AddBoard
             showBoard={showBoard}
             onClose={() => setShowAddBoard(false)}
             addBoardHandler={(title, text) => addBoardHandler(title, text)}
+            isMobile={isMobile}
           />
         </Modal>
       )}
 
       {/* 닉네임이 없는 , 게시판에 글 추가하는 modal */}
       {showAddBoard && nickName === "" && (
-        <Modal onClose={() => setShowAddBoard(false)} addStyle={"editNick"}>
+        <Modal
+          onClose={() => setShowAddBoard(false)}
+          addStyle={!isMobile ? "editNick" : "basic_mobile"}
+        >
           <EditNick
             onClose={() => setShowAddBoard(false)}
             addNickHandler={addNickHandler}
@@ -2206,12 +2928,13 @@ const Maps = (props) => {
       {showAddReview && (
         <Modal
           onClose={() => setShowAddReview(false)}
-          addStyle={"addReviewDiv"}
+          addStyle={!isMobile ? "addReviewDiv" : "basic_mobile"}
         >
           <AddReview
             addReviewHandler={addReviewHandler}
             options={OPTIONS}
             name={placeName}
+            isMobile={isMobile}
           />
         </Modal>
       )}

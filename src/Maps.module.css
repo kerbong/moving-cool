@@ -79,7 +79,9 @@
   color: gray;
 }
 
-.user-login {
+.user-login,
+.gps-btn,
+.gps-btn-mobile {
   position: fixed;
   top: 80px;
   right: 10px;
@@ -94,6 +96,19 @@
   height: 40px;
 }
 
+.gps-btn {
+  top: 135px;
+}
+
+.gps-btn-mobile {
+  top: 95px;
+}
+
+.user-login-mobile {
+  background-color: #2e3e4b;
+  border: 0;
+}
+
 .board-div {
   padding: 15px;
   overflow-y: auto;
@@ -103,6 +118,37 @@
 .placeinfo_board {
   left: 400px;
   width: 430px;
+}
+
+.placeinfo_wrap_mobile,
+.placeinfo_board_mobile {
+  width: 100vw;
+  height: auto;
+  background: #fff;
+  overflow: hidden;
+  z-index: 2;
+  max-width: 450px;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.placeinfo_board_mobile {
+  z-index: 3;
+}
+
+.search_mobile {
+  width: 100vw;
+  height: auto;
+  background: #fff;
+  overflow: hidden;
+  z-index: 2;
+  max-width: 450px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .boardLi-bottom {
@@ -180,7 +226,7 @@
 
 .notice-title,
 .notice-text {
-  font-size: 30px;
+  font-size: 25px;
   margin: 20px;
   text-align: center;
 }
@@ -240,7 +286,7 @@
   color: whitesmoke;
   border: 0;
   cursor: pointer;
-  margin: 10px 0;
+  margin: 15px 0;
 }
 
 .login-btn2 {
@@ -297,10 +343,20 @@
 .board-title {
   margin: 15px;
   font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.board-i-title {
+  word-break: keep-all;
+  display: flex;
+  align-items: center;
 }
 
 .addBtn,
-.addRevBtn {
+.addRevBtn,
+.backBtn {
   border-radius: 25px;
   cursor: pointer;
   width: 45px;
@@ -308,16 +364,24 @@
   font-size: 23px;
   border: 0;
   background-color: #6596c1;
-  position: fixed;
-  left: 770px;
-  top: 44px;
+  position: relative;
   text-align: center;
 }
 
-.addRevBtn {
-  position: relative;
-  left: 315px;
-  top: 5px;
+.backBtn {
+  color: white;
+  background-color: inherit;
+}
+
+.list-all {
+  height: 80px;
+  color: whitesmoke;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  cursor: pointer;
 }
 
 .rev-li {
@@ -410,15 +474,17 @@
   height: 28px;
 }
 
-.logo {
-  position: absolute;
-  top: 25px;
-  left: 25px;
+.logo,
+.logo-mobile {
+  position: relative;
+  top: 0;
+  left: 45px;
   width: 40px;
   height: 38px;
 }
 
-.window {
+.window,
+.window-mobile {
   position: fixed;
   top: 10%;
   left: 56%;
@@ -430,6 +496,12 @@
   color: white;
   font-size: 1.2rem;
   text-align: center;
+}
+
+.window-mobile {
+  left: 50vw;
+  width: 80vw;
+  top: 25%;
 }
 
 .terms-area {
@@ -477,7 +549,8 @@
   height: 100%;
 }
 
-.search-btn {
+.search-btn,
+.search-btn-mobile {
   background-color: #ffffff00;
   position: absolute;
   top: 35px;
@@ -527,7 +600,7 @@
   left: 0;
   width: calc(100% - 15px);
   background-color: #2e3e4b;
-  padding: 20px 10px;
+  padding: 15px 10px;
   color: whitesmoke;
 }
 .flex-row-title {
@@ -538,7 +611,8 @@
 
 .search-form {
   display: flex;
-  justify-content: center;
+  justify-content: space-around;
+  align-items: center;
 }
 
 .ratingOver-div {
@@ -552,4 +626,27 @@
   display: flex;
   justify-content: center;
   align-items: center;
+}
+.logo-mobile,
+.search-btn-mobile {
+  position: relative;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.board-grid,
+.board-grid-pc {
+  word-break: keep-all;
+  display: grid;
+  grid-template-columns: 1fr 4fr 1fr 1fr;
+  background-color: #2e3e4b;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  justify-items: center;
+}
+
+.board-grid-pc {
+  grid-template-columns: 1fr 4fr 1fr;
 }
