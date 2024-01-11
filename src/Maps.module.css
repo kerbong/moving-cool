@@ -96,6 +96,18 @@
   height: 40px;
 }
 
+.edit-input-title {
+  font-size: 18px;
+  padding: 10px;
+  border-radius: 10px;
+  width: 70%;
+}
+
+.rev_edit_btns {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .gps-btn {
   top: 135px;
 }

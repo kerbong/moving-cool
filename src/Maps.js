@@ -53,12 +53,16 @@ let noticeText = (
       선생님들이 근무하셨던 <b>[학교의 평가]</b>
     </div>
     <div style={{ marginBottom: "15px" }}>
-      학교, 지역에 대한<b> [질문]</b>들을 기다립니다☺️
+      학교, 지역에 대한<b> [질문]</b>들을 기다려요☺️
     </div>
-    <div style={{ fontSize: "15px" }}>* 학교 평가는 익명으로 저장됨</div>
+
     <br />
     <div style={{ fontSize: "15px" }}>
+      ** 매일 저녁 10시 30분 ~ 12시까지는 오류수정 및 개선이 이루어집니다.
+      데이터 수정 / 저장을 피해주세요!!!
+      <br />
       ** 앱 개선 및 불편사항은 kerbong@gmail.com으로 알려주세요!
+      <br />
     </div>
   </>
 );
@@ -101,6 +105,10 @@ const Maps = (props) => {
   const [isSearching, setIsSearching] = useState(false);
   const [nameLists, setNameLists] = useState([]);
   const [index, setIndex] = useState(0);
+  const [editData, setEditData] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editText, setEditText] = useState("");
+  const [editIndex, setEditIndex] = useState("none");
 
   const { kakao } = window;
 
@@ -1103,9 +1111,15 @@ const Maps = (props) => {
 
       boardRef = doc(dbService, "boards", docName);
     } else {
-      let docN = placeInfo.road_address_name
-        ? placeInfo.road_address_name.split(" ")
-        : placeInfo.address_name.split(" ");
+      let docN;
+      if (placeInfo) {
+        docN = placeInfo.road_address_name
+          ? placeInfo.road_address_name.split(" ")
+          : placeInfo.address_name.split(" ");
+      } else {
+        docN = nowArea?.split(" ");
+      }
+
       docName = docN[0] + "*" + docN[1];
 
       boardRef = doc(dbService, "area", docName);
@@ -1355,6 +1369,46 @@ const Maps = (props) => {
     });
   };
 
+  /** 게시판에 쓴 글 수정하는 함수, 첫번째 변수는 text값, 두번째 변수는 게시판 글 index, 세번째 변수는 main 혹은 reply 인지, 마지막 ind2는 reply인 경우 reply인덱스 */
+  const saveEditBoard = async (value, ind1, mainOrReply, ind2) => {
+    const new_text = value;
+    const new_title = editTitle;
+
+    //학교 데이터 최신걸로 다시 받아와서, 거기에서 datas에 ind가 같은거 찾고 변경해줌.. main이면 main의 title, text변경, reply면 해당 ind2의 title,text변경.
+
+    let docName;
+    if (showBoard) {
+      docName = placeInfo?.road_address_name
+        ? placeInfo?.place_name + "*" + placeInfo?.road_address_name
+        : placeInfo?.place_name + "*" + placeInfo?.address_name;
+    } else {
+      docName = nowArea?.split(" ")[0] + "*" + nowArea?.split(" ")[1];
+    }
+
+    let docRef = doc(dbService, "boards", docName);
+
+    const docData = await getDoc(docRef);
+    let new_data = { ...docData?.data() };
+
+    if (mainOrReply === "main") {
+      new_data.datas[ind1].title = new_title;
+      new_data.datas[ind1].text = new_text;
+      // console.log(new_data);
+    } else if (mainOrReply === "reply") {
+      new_data.datas[ind1].reply[ind2].text = new_text;
+
+      // console.log(new_data);
+    }
+
+    //저장하기
+    await setDoc(docRef, { ...new_data });
+
+    // 수정할 데이터 초기화
+    setEditData(null);
+    setEditTitle("");
+    setEditText("");
+  };
+
   /** 학교 상세 정보 목록들 보여주는 부분 */
   const displayPlaceDesc = () => {
     return (
@@ -1447,9 +1501,36 @@ const Maps = (props) => {
 
               return (
                 <li key={index} className={classes["board-li"]}>
-                  <div className={classes["boardLi-title"]}>{bd.title}</div>
+                  <div className={classes["boardLi-title"]}>
+                    {/* 수정중이면 제목용 input 보여주기  */}
+                    {editData &&
+                    editData.id === bd.id &&
+                    editData.written === user.uid ? (
+                      <input
+                        type="text"
+                        value={editTitle}
+                        className={classes["edit-input-title"]}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                      ></input>
+                    ) : (
+                      bd.title
+                    )}
+                  </div>
                   <div className={classes["boardLi-text"]}>
-                    {truncateText(bd.text, 60)}
+                    {/* 수정중이면 내용 들어갈 input 보여주기  */}
+
+                    {editData &&
+                    editData.id === bd.id &&
+                    editData.written === user.uid ? (
+                      <FlexibleInput
+                        className={"board-reply"}
+                        defaultValue={bd.text}
+                        submitHandler={(v) => saveEditBoard(v, index, "main")}
+                        btnTitle={"수정"}
+                      />
+                    ) : (
+                      truncateText(bd.text, 60)
+                    )}
                   </div>
 
                   {/* 닉네임 며칠전 신고하기/ 좋아요    */}
@@ -1462,14 +1543,52 @@ const Maps = (props) => {
                       <div style={{ marginLeft: "15px" }}>
                         {dayjs(bd.id).fromNow()}
                       </div>
-                      {/* 신고하기 */}
-                      <div
-                        style={{ marginLeft: "15px", cursor: "pointer" }}
-                        onClick={() => reportCheck(bd)}
-                        title="신고하기"
-                      >
-                        <i className="fa-solid fa-land-mine-on fa-sm"></i>
-                      </div>
+
+                      {/* 내꺼 아니면, 신고하기 */}
+                      {bd.written !== user.uid && (
+                        <div
+                          style={{ marginLeft: "15px", cursor: "pointer" }}
+                          onClick={() => reportCheck(bd)}
+                          title="신고하기"
+                        >
+                          <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                        </div>
+                      )}
+
+                      {/* 내꺼면, 수정하기 버튼 보여주기 */}
+                      {bd.written === user.uid && (
+                        <div
+                          style={{ marginLeft: "15px", cursor: "pointer" }}
+                          onClick={() => {
+                            if (!editData) {
+                              setEditData(bd);
+                              setEditTitle(bd.title);
+                              setEditText(bd.text);
+                            } else {
+                              setEditData(null);
+                              setEditTitle("");
+                              setEditText("");
+                            }
+                          }}
+                          title={
+                            editData && editData.id === bd.id
+                              ? "취소하기"
+                              : "수정하기"
+                          }
+                        >
+                          {editData && editData.id === bd.id ? (
+                            <i
+                              className="fa-solid fa-xmark fa-sm"
+                              style={{ color: "red" }}
+                            ></i>
+                          ) : (
+                            <i
+                              className="fa-solid fa-pen-to-square fa-sm"
+                              style={{ color: "black" }}
+                            ></i>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {/* 좋아요 */}
                     <div
@@ -1494,8 +1613,8 @@ const Maps = (props) => {
                   {bd?.reply?.length > 0 && (
                     <>
                       <hr />
-                      {bd?.reply?.map((rep, ind) => (
-                        <div key={ind} className={classes["reply-div"]}>
+                      {bd?.reply?.map((rep, ind2) => (
+                        <div key={ind2} className={classes["reply-div"]}>
                           <i
                             className="fa-solid fa-reply fa-rotate-180"
                             style={{
@@ -1505,7 +1624,25 @@ const Maps = (props) => {
                             }}
                           ></i>
                           <div style={{ width: "100%" }}>
-                            <div>{truncateText(rep.text, 60)}</div>
+                            {/* text 내용 */}
+                            <div>
+                              {/* 수정중이면 내용 들어갈 input 보여주기  */}
+
+                              {editData &&
+                              editData.id === rep.id &&
+                              editData.written === user.uid ? (
+                                <FlexibleInput
+                                  className={"board-reply"}
+                                  defaultValue={rep.text}
+                                  submitHandler={(v) =>
+                                    saveEditBoard(v, index, "reply", ind2)
+                                  }
+                                  btnTitle={"수정"}
+                                />
+                              ) : (
+                                truncateText(rep.text, 60)
+                              )}
+                            </div>
 
                             {/* 닉네임 며칠전 신고하기/ 좋아요    */}
                             <div className={classes["boardLi-bottom"]}>
@@ -1517,17 +1654,58 @@ const Maps = (props) => {
                                 <div style={{ marginLeft: "15px" }}>
                                   {dayjs(rep.id).fromNow()}
                                 </div>
-                                {/* 신고하기 */}
-                                <div
-                                  style={{
-                                    marginLeft: "15px",
-                                    cursor: "pointer",
-                                  }}
-                                  onClick={() => reportCheck(bd, rep)}
-                                  title="신고하기"
-                                >
-                                  <i className="fa-solid fa-land-mine-on fa-sm"></i>
-                                </div>
+
+                                {/* 내꺼 아니면, 신고하기 */}
+                                {rep.written !== user.uid && (
+                                  <div
+                                    style={{
+                                      marginLeft: "15px",
+                                      cursor: "pointer",
+                                    }}
+                                    onClick={() => reportCheck(bd, rep)}
+                                    title="신고하기"
+                                  >
+                                    <i className="fa-solid fa-land-mine-on fa-sm"></i>
+                                  </div>
+                                )}
+
+                                {/* 내꺼면, 수정하기 버튼 보여주기 */}
+                                {rep.written === user.uid && (
+                                  <div
+                                    style={{
+                                      marginLeft: "15px",
+                                      cursor: "pointer",
+                                    }}
+                                    onClick={() => {
+                                      if (!editData) {
+                                        setEditData(rep);
+
+                                        setEditText(rep.text);
+                                      } else {
+                                        setEditData(null);
+                                        setEditTitle("");
+                                        setEditText("");
+                                      }
+                                    }}
+                                    title={
+                                      editData && editData.id === rep.id
+                                        ? "취소하기"
+                                        : "수정하기"
+                                    }
+                                  >
+                                    {editData && editData.id === rep.id ? (
+                                      <i
+                                        className="fa-solid fa-xmark fa-sm"
+                                        style={{ color: "red" }}
+                                      ></i>
+                                    ) : (
+                                      <i
+                                        className="fa-solid fa-pen-to-square fa-sm"
+                                        style={{ color: "black" }}
+                                      ></i>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                               {/* 좋아요 */}
                               <div
@@ -1597,7 +1775,7 @@ const Maps = (props) => {
       //로그아웃 swal
       Swal.fire({
         title: "로그아웃",
-        text: "로그아웃 하시겠어요?",
+        text: `${user.email} 님, 로그아웃 하시겠어요?`,
         confirmButtonText: "확인",
         showDenyButton: true,
         denyButtonText: "취소",
@@ -1748,7 +1926,6 @@ const Maps = (props) => {
           className={classes["recentItem-div"]}
           style={!placeInfo ? { marginTop: "-8px" } : {}}
         >
-          <hr className={classes["hr"]} />
           <div className={classes["recent-title"]}>
             <i
               className="fa-solid fa-school-flag fa-sm"
@@ -1802,11 +1979,13 @@ const Maps = (props) => {
               key={index}
               className={classes["listItem-li"]}
               onClick={() => {
-                getAreaData(pl.address);
                 let areaName =
                   pl.address.split("*")[0] + " " + pl.address.split("*")[1];
                 setNowArea(areaName);
+                getAreaData(pl.address);
                 setShowBoard(false);
+                setPlaceInfo(null);
+                setPlaceName(null);
               }}
             >
               {/* 지역명 */}
@@ -1851,6 +2030,30 @@ const Maps = (props) => {
       return;
     }
     setShowAddReview(true);
+  };
+
+  /** 내가 쓴 리뷰를 수정하는 함수 */
+  const editRevHandler = async () => {
+    // 일단, 현재 학교 doc 정보 최신으로 받아오고, 그중에서 현재 editIndex의 리뷰만 골라서 수정하고 저장함.
+
+    let docName = placeInfo?.road_address_name
+      ? placeInfo?.place_name + "*" + placeInfo?.road_address_name
+      : placeInfo?.place_name + "*" + placeInfo?.address_name;
+
+    let docRef = doc(dbService, "boards", docName);
+
+    const docData = await getDoc(docRef);
+    let new_data = { ...docData?.data() };
+
+    new_data.reviews.text[editIndex] = editText;
+    // console.log(new_data);
+
+    //저장하기
+    await setDoc(docRef, { ...new_data });
+
+    // 수정할 데이터 초기화
+    setEditIndex("none");
+    setEditText("");
   };
 
   /** 학교의 평점, 리뷰들 보여주는  html */
@@ -1916,7 +2119,65 @@ const Maps = (props) => {
 
                   return (
                     <li key={rev_i} className={classes["rev-li"]}>
-                      {rev}
+                      {/* 리뷰, 내가쓴거면 수정 */}
+                      {+editIndex === +rev_i ? (
+                        <input
+                          type="text"
+                          value={editText}
+                          className={classes["edit-input-title"]}
+                          onChange={(e) => setEditText(e.target.value)}
+                        ></input>
+                      ) : (
+                        rev
+                      )}
+
+                      {/* 내가 쓴 리뷰는.. 수정가능하도록!! */}
+                      {reviews?.reviewer?.[rev_i]?.uid === user.uid && (
+                        <div className={classes["rev_edit_btns"]}>
+                          {/* 저장버튼은.. editIndex가 숫자일 때만보임 */}
+                          {!isNaN(+editIndex) && (
+                            <div
+                              onClick={editRevHandler}
+                              title="수정하기"
+                              style={{ cursor: "pointer" }}
+                            >
+                              <i
+                                className="fa-solid fa-floppy-disk fa-lg"
+                                style={{ color: "black" }}
+                              ></i>
+                            </div>
+                          )}
+
+                          <div
+                            style={{ margin: "0 15px", cursor: "pointer" }}
+                            onClick={() => {
+                              // 숫자면 , 즉 수정중이면
+                              if (!isNaN(+editIndex)) {
+                                setEditIndex("none");
+                                setEditText("");
+                              } else {
+                                setEditIndex(rev_i);
+                                setEditText(rev);
+                              }
+                            }}
+                            title={
+                              +editIndex === +rev_i ? "취소하기" : "수정하기"
+                            }
+                          >
+                            {+editIndex === +rev_i ? (
+                              <i
+                                className="fa-solid fa-xmark fa-lg"
+                                style={{ color: "red" }}
+                              ></i>
+                            ) : (
+                              <i
+                                className="fa-solid fa-pen-to-square fa-md"
+                                style={{ color: "black" }}
+                              ></i>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -1942,6 +2203,7 @@ const Maps = (props) => {
               🚧 로그인 후에 한줄평을 확인해주세요!
             </ul>
           )}
+          <hr className={classes["hr"]} />
         </div>
       </div>
     );
@@ -2240,7 +2502,7 @@ const Maps = (props) => {
           !isMobile ? classes["user-login"] : classes["user-login-mobile"]
         }
         onClick={userHandler}
-        title={user ? "로그아웃" : "로그인"}
+        title={user ? `${user.email} | 로그아웃` : "로그인"}
       >
         {user ? (
           <i
